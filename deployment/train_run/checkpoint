@@ -1,0 +1,3 @@
+model_checkpoint_path: "X:\\Snoring-Detection-master\\Snoring-Detection-master\\deployment\\train_run\\tiny_conv.ckpt-50"
+all_model_checkpoint_paths: "X:\\Snoring-Detection-master\\Snoring-Detection-master\\deployment\\train_run\\tiny_conv.ckpt-25"
+all_model_checkpoint_paths: "X:\\Snoring-Detection-master\\Snoring-Detection-master\\deployment\\train_run\\tiny_conv.ckpt-50"
