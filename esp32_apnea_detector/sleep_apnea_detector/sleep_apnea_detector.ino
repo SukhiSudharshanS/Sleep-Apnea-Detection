@@ -103,12 +103,15 @@ uint16_t histCount = 0;
 float    accSpO2 = 0, accBPM = 0, accMovement = 0;
 uint8_t  accSamples = 0;
 unsigned long lastLiveNotify = 0;
+unsigned long bleConnectTime = 0;
+bool bulkSent = false;
 
 class ServerCallbacks : public NimBLEServerCallbacks {
     void onConnect(NimBLEServer* pSvr, NimBLEConnInfo& connInfo) override {
         deviceConnected = true;
-        Serial.println("[BLE] Client connected!");
-        sendBulkHistory();
+        bulkSent = false;
+        bleConnectTime = millis();
+        Serial.println("[BLE] Client connected! (bulk sync in 5s)");
     }
     void onDisconnect(NimBLEServer* pSvr, NimBLEConnInfo& connInfo, int reason) override {
         deviceConnected = false;
@@ -118,7 +121,7 @@ class ServerCallbacks : public NimBLEServerCallbacks {
 };
 
 void setup() {
-    Serial.begin(115200); delay(1000);
+    Serial.begin(115200); delay(10000);  // 10s delay so Serial Monitor catches boot messages
     Serial.println("\n=== Sleep Apnea Detector ===\n");
     pinMode(BUZZER_PIN, OUTPUT); pinMode(LED_PIN, OUTPUT);
     digitalWrite(BUZZER_PIN, LOW); digitalWrite(LED_PIN, LOW);
@@ -219,6 +222,7 @@ void setup_ble() {
     pService->start();
     NimBLEAdvertising* pAdvertising = NimBLEDevice::getAdvertising();
     pAdvertising->addServiceUUID(SERVICE_UUID);
+    pAdvertising->setAppearance(0x0340);  // Pulsimeter category
     pAdvertising->setScanResponseData(NimBLEAdvertisementData());
     pAdvertising->start();
     Serial.println("OK");
@@ -227,7 +231,11 @@ void setup_ble() {
 void read_spo2_and_bpm() {
     if (maxSensor.getIR() < 50000) { latest_spo2 = 0.0f; latest_bpm = 0.0f; return; }
     for (int i = 0; i < SPO2_BUFFER_LEN; i++) {
-        while (!maxSensor.available()) maxSensor.check();
+        unsigned long t0 = millis();
+        while (!maxSensor.available()) {
+            maxSensor.check();
+            if (millis() - t0 > 500) { return; }  // I2C timeout — keep BLE alive
+        }
         red_buf_spo2[i] = maxSensor.getRed();
         ir_buf_spo2[i]  = maxSensor.getIR();
         maxSensor.nextSample();
@@ -310,12 +318,14 @@ void loop() {
         checkApneaAlert(u_spo2);
         buffer_index++;
         if (buffer_index >= WINDOW_SECONDS) { buffer_index = 0; buffer_full = true; }
+        int displayIdx = (buffer_index == 0 && buffer_full) ? WINDOW_SECONDS : buffer_index;
         Serial.printf("[LIVE] SpO2:%.1f%% BPM:%.0f Move:%.2fg Audio:%.1f [%d/%d]\n",
                       spo2, bpm, movement, current_audio_db,
-                      buffer_full ? WINDOW_SECONDS : buffer_index, WINDOW_SECONDS);
+                      displayIdx, WINDOW_SECONDS);
         if (buffer_full && buffer_index == 0) { run_inference(); max_window_energy = -9999.0f; }
     }
     if (deviceConnected && (now - lastLiveNotify >= LIVE_INTERVAL_MS)) { lastLiveNotify = now; notifyLiveData(); }
+    if (deviceConnected && !bulkSent && (now - bleConnectTime >= 5000)) { bulkSent = true; sendBulkHistory(); }
     if (!deviceConnected && oldDeviceConnected) {
         delay(300); NimBLEDevice::startAdvertising();
         Serial.println("[BLE] Advertising restarted."); oldDeviceConnected = false;
