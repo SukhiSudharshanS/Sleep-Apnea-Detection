@@ -1,1 +1,1 @@
-# Sleep-Apnea-Detection-cum-Prediction
+# Sleep-Apnea-Detection
