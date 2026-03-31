@@ -13,9 +13,6 @@ deployment/tensorflow1/tensorflow/examples/README.md
 deployment/tensorflow1/tensorflow/examples/__init__.py
 deployment/tensorflow1/tensorflow/examples/adding_an_op/
 deployment/tensorflow1/tensorflow/examples/android/
-*.wav
-Snoring_Dataset_@16000/
-processed_data/
 deployment/tensorflow1/tensorflow/examples/udacity/
 deployment/tensorflow1/tensorflow/examples/wav_to_spectrogram/
 deployment/tensorflow1/tensorflow/go/
