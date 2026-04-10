@@ -28,9 +28,8 @@
 #define CHAR_ALERT_UUID   "19b10002-e8f2-537e-4f6c-d104768a1214"
 #define CHAR_BULK_UUID    "19b10003-e8f2-537e-4f6c-d104768a1214"
 
-#define LIVE_INTERVAL_MS      2000
+#define LIVE_INTERVAL_MS      1000
 #define ACCUMULATE_WINDOW_S   10
-#define APNEA_SPO2_THRESHOLD  88
 #define BLE_CHUNK_SIZE        19
 #define MAX_HISTORY_LEN       3000
 #define WINDOW_SECONDS        60
@@ -55,7 +54,7 @@ void  setup_fft(); void setup_tflite(); void setup_ble();
 void  read_spo2_and_bpm(); float read_movement_magnitude();
 void  capture_audio_mfcc(); void run_inference();
 void  start_alert(); void tick_alert(); void notifyLiveData();
-void  checkApneaAlert(uint8_t spo2);
+void  sendInferenceAlert(float risk);
 void  accumulateHistory(uint8_t spo2, uint8_t bpm, uint8_t movement);
 void  sendBulkHistory(); void sendChunkedArray(uint8_t header, const uint8_t* data, uint16_t len);
 
@@ -97,6 +96,7 @@ NimBLECharacteristic* pCharAlert = nullptr;
 NimBLECharacteristic* pCharBulk = nullptr;
 bool deviceConnected = false, oldDeviceConnected = false;
 uint8_t lastAlertVal = 0;
+uint8_t cached_spo2 = 0, cached_bpm = 0, cached_movement = 0, cached_audio = 0;
 
 uint8_t  histSpO2[MAX_HISTORY_LEN], histBPM[MAX_HISTORY_LEN], histMovement[MAX_HISTORY_LEN];
 uint16_t histCount = 0;
@@ -314,8 +314,14 @@ void loop() {
         uint8_t u_spo2 = (uint8_t)constrain(spo2, 0, 100);
         uint8_t u_bpm  = (uint8_t)constrain(bpm, 0, 250);
         uint8_t u_movement = (uint8_t)constrain((int)((fabsf(movement - 1.0f) / 0.5f) * 10.0f), 0, 10);
+        // Map audio dB (typically -5 to +5) into 0-10 positive integer
+        float audioMapped = (current_audio_db + 5.0f);
+        if (audioMapped < 0.0f) audioMapped = 0.0f;
+        uint8_t u_audio = (uint8_t)constrain((int)audioMapped, 0, 10);
+        // Cache values for BLE notify (avoids redundant sensor reads)
+        cached_spo2 = u_spo2; cached_bpm = u_bpm;
+        cached_movement = u_movement; cached_audio = u_audio;
         accumulateHistory(u_spo2, u_bpm, u_movement);
-        checkApneaAlert(u_spo2);
         buffer_index++;
         if (buffer_index >= WINDOW_SECONDS) { buffer_index = 0; buffer_full = true; }
         int displayIdx = (buffer_index == 0 && buffer_full) ? WINDOW_SECONDS : buffer_index;
@@ -354,6 +360,7 @@ void run_inference() {
     if (risk >= RISK_THRESHOLD) { Serial.println("[ALERT] HIGH RISK!"); start_alert(); }
     else if (risk >= 0.3f) { Serial.println("[WARN]  Moderate risk."); digitalWrite(LED_PIN, HIGH); delay(200); digitalWrite(LED_PIN, LOW); }
     else { Serial.println("[OK]    Normal."); }
+    sendInferenceAlert(risk);
     float avg_spo2 = 0, avg_bpm = 0, max_move = 0;
     for (int i = 0; i < WINDOW_SECONDS; i++) {
         avg_spo2 += spo2_buffer[i]; avg_bpm += bpm_buffer[i];
@@ -365,21 +372,22 @@ void run_inference() {
 }
 
 void notifyLiveData() {
-    uint8_t spo2 = (uint8_t)constrain(latest_spo2, 0, 100);
-    uint8_t bpm  = (uint8_t)constrain(latest_bpm,  0, 250);
-    uint8_t movement = (uint8_t)constrain((int)((fabsf(read_movement_magnitude() - 1.0f) / 0.5f) * 10.0f), 0, 10);
-    uint8_t payload[3] = { spo2, bpm, movement };
-    pCharLive->setValue(payload, 3); pCharLive->notify();
-    Serial.printf("[BLE TX] Live → SpO2:%d  BPM:%d  Move:%d\n", spo2, bpm, movement);
+    // Use cached values from loop() — no redundant sensor reads
+    uint8_t payload[4] = { cached_spo2, cached_bpm, cached_movement, cached_audio };
+    pCharLive->setValue(payload, 4); pCharLive->notify();
+    Serial.printf("[BLE TX] Live -> SpO2:%d  BPM:%d  Move:%d  Audio:%d\n",
+                  cached_spo2, cached_bpm, cached_movement, cached_audio);
 }
 
-void checkApneaAlert(uint8_t spo2) {
-    uint8_t alertVal = (spo2 > 0 && spo2 < APNEA_SPO2_THRESHOLD) ? 1 : 0;
-    if (alertVal != lastAlertVal) {
-        lastAlertVal = alertVal;
-        pCharAlert->setValue(&alertVal, 1);
-        if (deviceConnected) { pCharAlert->notify(); Serial.printf("[BLE TX] Alert → %s\n", alertVal ? "APNEA DETECTED" : "Normal"); }
+void sendInferenceAlert(float risk) {
+    // Send 1 byte: raw ML risk percentage (0-100)
+    uint8_t riskPercent = (uint8_t)constrain((int)(risk * 100.0f), 0, 100);
+    pCharAlert->setValue(&riskPercent, 1);
+    if (deviceConnected) {
+        pCharAlert->notify();
+        Serial.printf("[BLE TX] Alert -> Risk: %d%%\n", riskPercent);
     }
+    lastAlertVal = riskPercent;
 }
 
 void accumulateHistory(uint8_t spo2, uint8_t bpm, uint8_t movement) {
