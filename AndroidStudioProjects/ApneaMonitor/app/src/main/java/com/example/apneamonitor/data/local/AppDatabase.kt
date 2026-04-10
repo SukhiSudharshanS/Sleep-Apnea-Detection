@@ -6,7 +6,7 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 
-@Database(entities = [SleepSessionEntity::class], version = 2, exportSchema = false)
+@Database(entities = [SleepSessionEntity::class], version = 3, exportSchema = false)
 @TypeConverters(SensorDataConverters::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun sleepSessionDao(): SleepSessionDao

@@ -8,7 +8,6 @@ data class SleepSessionEntity(
     @PrimaryKey val dateString: String, // e.g., "2026-03-24"
     val startTimeStamp: Long,
     val endTimeStamp: Long,
-    val sleepScore: Int,
     val totalApneaEvents: Int,
     val totalRestlessEvents: Int,
     val avgSpO2: Int,
@@ -18,5 +17,7 @@ data class SleepSessionEntity(
     val spO2Array: List<Int>, 
     val bpmArray: List<Int>,
     val movementArray: List<Int>,
-    val apneaAlertTimestamps: List<Long>
+    val audioArray: List<Int>,
+    val apneaAlertTimestamps: List<Long>,
+    val isActive: Boolean = false // Track if this is a live recording session
 )

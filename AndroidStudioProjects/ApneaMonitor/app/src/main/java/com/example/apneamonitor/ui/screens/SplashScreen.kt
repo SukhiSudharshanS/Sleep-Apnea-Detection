@@ -71,7 +71,7 @@ fun SplashScreen(onNavigateNext: () -> Unit) {
         Text(
             text = "ApneaMonitor",
             color = Color.White,
-            fontSize = 32.sp,
+            style = androidx.compose.material3.MaterialTheme.typography.displayMedium,
             fontWeight = FontWeight.Bold
         )
         
@@ -80,7 +80,7 @@ fun SplashScreen(onNavigateNext: () -> Unit) {
         Text(
             text = "Intelligent Sleep Synthesis",
             color = Cyan,
-            fontSize = 16.sp,
+            style = androidx.compose.material3.MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Medium
         )
     }

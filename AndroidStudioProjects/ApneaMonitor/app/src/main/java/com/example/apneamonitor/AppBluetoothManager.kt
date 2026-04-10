@@ -53,6 +53,9 @@ class AppBluetoothManager(private val context: Context) {
     private val _latestInferenceScore = MutableStateFlow(0)
     val latestInferenceScore: StateFlow<Int> = _latestInferenceScore.asStateFlow()
 
+    private val _inferenceTrigger = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    val inferenceTrigger: SharedFlow<Unit> = _inferenceTrigger.asSharedFlow()
+
     // Specific Callback Hook for Bulk Historical Transfer (for the ViewModel repository layer)
     var onHistoricalDataReceived: ((List<Int>, List<Int>, List<Long>, List<Int>) -> Unit)? = null
 
@@ -197,19 +200,24 @@ class AppBluetoothManager(private val context: Context) {
         when (uuid) {
             CHAR_LIVE_DATA_UUID -> {
                 Log.d("ApneaBLE", "Live Packet Received: Size=${value.size}, Data=${value.joinToString()}")
-                if (value.size == 4) { // STRICT 4-byte payload check
-                    _spo2.value = value[0].toInt() and 0xFF
-                    _bpm.value = value[1].toInt() and 0xFF
-                    _movement.value = value[2].toInt() and 0xFF // 3rd byte: Movement
-                    _audioLevel.value = value[3].toInt() and 0xFF // 4th byte: Audio
+                if (value.size >= 4) { // Defensive payload check
+                    _spo2.value = value[0].toUByte().toInt()
+                    _bpm.value = value[1].toUByte().toInt()
+                    _movement.value = value[2].toUByte().toInt() // 3rd byte: Movement
+                    _audioLevel.value = value[3].toUByte().toInt() // 4th byte: Audio
+                } else {
+                    Log.w("ApneaBLE", "Dropped undersized Live Data packet: ${value.size} bytes")
                 }
             }
             CHAR_ALERT_UUID -> {
                 if (value.isNotEmpty()) {
-                    val score = value[0].toInt() and 0xFF
+                    val score = value[0].toUByte().toInt()
                     _latestInferenceScore.value = score
-                    // Update apneaAlert if score exceeds high risk threshold (e.g. 60)
-                    _apneaAlert.value = if (score > 60) 1 else 0
+                    
+                    // Fire the hardware event trigger to reset UI timers
+                    _inferenceTrigger.tryEmit(Unit)
+                } else {
+                    Log.w("ApneaBLE", "Dropped empty Alert packet")
                 }
             }
             CHAR_BULK_DATA_UUID -> {

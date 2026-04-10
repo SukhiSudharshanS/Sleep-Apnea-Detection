@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -180,13 +181,15 @@ fun ApneaMainScaffold(viewModel: ApneaViewModel) {
             }
             composable("dashboard") {
                 val latestSession by viewModel.latestSession.collectAsStateWithLifecycle()
+                val activeSession by viewModel.activeSession.collectAsStateWithLifecycle()
                 val weeklyTrend by viewModel.weeklyTrend.collectAsStateWithLifecycle()
                 val connectionState by viewModel.connectionState.collectAsStateWithLifecycle()
                 val riskScore by viewModel.riskScore.collectAsStateWithLifecycle()
                 val countdown by viewModel.timeUntilNextAssessment.collectAsStateWithLifecycle()
-
+ 
                 DashboardScreen(
                     latestSession = latestSession,
+                    activeSession = activeSession,
                     trendTuple = weeklyTrend,
                     connectionState = connectionState,
                     riskScore = riskScore,
@@ -203,6 +206,14 @@ fun ApneaMainScaffold(viewModel: ApneaViewModel) {
                             viewModel.connectOrSync()
                         }
                         else permissionLauncher.launch(requiredPermissions)
+                    },
+                    onDownloadReport = { ctx: android.content.Context ->
+                        val success = viewModel.generateSessionSummary(ctx)
+                        if (success) {
+                            Toast.makeText(ctx, "Report saved to Downloads", Toast.LENGTH_LONG).show()
+                        } else {
+                            Toast.makeText(ctx, "Failed to generate report", Toast.LENGTH_SHORT).show()
+                        }
                     }
                 )
             }

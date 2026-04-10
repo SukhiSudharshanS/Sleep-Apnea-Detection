@@ -103,8 +103,8 @@ dependencies {
     // 3. Google Maps API
     implementation("com.google.android.gms:play-services-maps:17.0.0")
 
-    // 4. BERT for NLP (TensorFlow Lite)
-    implementation("org.tensorflow:tensorflow-lite:2.9.0")
+    // 4. BERT for NLP (TensorFlow Lite - Modern AAR optimized)
+    implementation("org.tensorflow:tensorflow-lite:2.16.1")
 
 
     // 6. Firebase

@@ -11,6 +11,9 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
@@ -69,10 +72,13 @@ fun LiveMonitorScreen(
         }
     }
 
+    val scrollState = rememberScrollState()
+
     Column(
         modifier = modifier
             .fillMaxSize()
             .background(MidnightBlue)
+            .verticalScroll(scrollState)
             .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
@@ -91,8 +97,7 @@ fun LiveMonitorScreen(
             Text(
                 text = "ApneaMonitor",
                 color = Color.White,
-                fontSize = 24.sp,
-                fontWeight = FontWeight.Bold
+                style = MaterialTheme.typography.headlineMedium
             )
         }
         
@@ -101,8 +106,7 @@ fun LiveMonitorScreen(
         Text(
             text = "Live Diagnostics",
             color = Cyan,
-            fontSize = 14.sp,
-            fontWeight = FontWeight.Medium,
+            style = MaterialTheme.typography.labelLarge,
             modifier = Modifier.padding(bottom = 32.dp)
         )
 
@@ -139,7 +143,7 @@ fun LiveMonitorScreen(
                 )
 
                 LiveMetricCard(
-                    title = "Snore Level",
+                    title = "Audio Level",
                     value = "$audioLevel",
                     icon = Icons.Default.Mic,
                     progress = audioLevel / 10f,
@@ -184,17 +188,13 @@ fun LiveMetricCard(
             Text(
                 text = value,
                 color = Cyan,
-                fontSize = 36.sp, // Increased since it's a 2x2 grid now
-                fontWeight = FontWeight.ExtraBold,
-                fontFamily = androidx.compose.ui.text.font.FontFamily.SansSerif
+                style = MaterialTheme.typography.displayMedium
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = title,
                 color = Color.Gray,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Normal,
-                fontFamily = androidx.compose.ui.text.font.FontFamily.SansSerif
+                style = MaterialTheme.typography.labelMedium
             )
 
             if (progress != null) {
@@ -233,16 +233,14 @@ fun AlertBanner(apneaAlert: Int) {
                 Text(
                     text = "Apnea Event Detected",
                     color = textColor,
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.titleLarge,
                     textAlign = TextAlign.Center
                 )
             } else {
                 Text(
                     text = "Status: Normal Breathing",
                     color = Color.Gray,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Normal,
+                    style = MaterialTheme.typography.titleMedium,
                     textAlign = TextAlign.Center
                 )
             }

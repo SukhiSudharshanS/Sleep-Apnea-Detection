@@ -130,8 +130,6 @@ class PdfGenerator(private val context: Context) {
         
         val riskLevel = if (session.totalApneaEvents > 5 || session.lowestSpO2 < 90) "ELEVATED RISK" else "NORMAL BASELINE"
         canvas.drawText("The Neural Fusion edge models evaluate this session as: $riskLevel", startX, currentY, bodyPaint)
-        currentY += 20f
-        canvas.drawText("Composite Sleep Score: ${session.sleepScore}/100", startX, currentY, bodyPaint)
         currentY += 50f
         
         // The Disclaimer Section - Must be bounded to the bottom of the A4 page (e.g. Y=780)

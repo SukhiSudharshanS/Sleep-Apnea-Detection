@@ -11,9 +11,17 @@ interface SleepSessionDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertSession(session: SleepSessionEntity)
 
-    // Flow automatically updates the UI when DB changes
     @Query("SELECT * FROM sleep_sessions ORDER BY startTimeStamp DESC LIMIT 1")
     fun getLatestSessionFlow(): Flow<SleepSessionEntity?>
+
+    @Query("SELECT * FROM sleep_sessions WHERE isActive = 1 LIMIT 1")
+    fun getActiveSessionFlow(): Flow<SleepSessionEntity?>
+
+    @Query("SELECT * FROM sleep_sessions WHERE isActive = 1 LIMIT 1")
+    suspend fun getActiveSession(): SleepSessionEntity?
+
+    @Query("UPDATE sleep_sessions SET isActive = 0 WHERE isActive = 1")
+    suspend fun deactivateAllSessions()
 
     // Weekly trend tuple avoiding pulling massive string blobs
     @Query("SELECT dateString, totalApneaEvents FROM sleep_sessions ORDER BY startTimeStamp DESC LIMIT 7")

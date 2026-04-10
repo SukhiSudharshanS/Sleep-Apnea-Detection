@@ -3,12 +3,15 @@ package com.example.apneamonitor.ui.screens
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import android.content.Context
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
+import androidx.compose.ui.platform.LocalContext
+import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -31,21 +34,20 @@ import com.example.apneamonitor.ui.theme.*
 @Composable
 fun DashboardScreen(
     latestSession: SleepSessionEntity?,
+    activeSession: SleepSessionEntity?,
     trendTuple: List<WeeklyTrendTuple>,
     connectionState: AppBluetoothManager.ConnectionState,
     riskScore: Int,
     countdown: Int,
-    onForceSyncTap: () -> Unit
+    onForceSyncTap: () -> Unit,
+    onDownloadReport: (Context) -> Unit
 ) {
     val scrollState = rememberScrollState()
+    val context = LocalContext.current
 
-    // Enforce Zero-State Defaults if DB is empty
-    val safeScore = latestSession?.sleepScore ?: 0
-    val safeApneas = latestSession?.totalApneaEvents ?: 0
-    val safeAvgSpO2 = latestSession?.avgSpO2 ?: 0
-    val safeMinSpO2 = latestSession?.lowestSpO2 ?: 0
-    val safeBpm = latestSession?.avgBpm ?: 0
-    val safeRestless = latestSession?.totalRestlessEvents ?: 0
+    // Single Source of Truth: Use active session if available, otherwise latest historical session
+    val sessionSource = activeSession ?: latestSession
+    val safeBpm = sessionSource?.avgBpm ?: 0
 
     Column(
         modifier = Modifier
@@ -70,8 +72,7 @@ fun DashboardScreen(
             Text(
                 text = "ApneaMonitor",
                 color = Color.White,
-                fontSize = 28.sp,
-                fontWeight = FontWeight.Bold
+                style = MaterialTheme.typography.headlineMedium
             )
         }
         Spacer(modifier = Modifier.height(12.dp))
@@ -96,30 +97,61 @@ fun DashboardScreen(
             ) {
                 Box(modifier = Modifier.size(8.dp).background(pillTextCol, CircleShape))
                 Spacer(modifier = Modifier.width(8.dp))
-                Text(text = pillText, color = pillTextCol, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                Text(text = pillText, color = pillTextCol, style = MaterialTheme.typography.labelLarge)
             }
         }
         
         Spacer(modifier = Modifier.height(24.dp))
 
-        // --- HERO SECTION (APNEA RISK GAUGE) ---
+        // --- HERO SECTION (APNEA EVENTS RING) ---
         val riskColor = when {
             riskScore <= 30 -> LightGreen // Green
-            riskScore <= 70 -> SoftYellow // Yellow
+            riskScore <= 60 -> SoftYellow // Yellow
             else -> CoralRed             // Red
         }
         
         val riskStatus = when {
             riskScore <= 30 -> "Status: Normal Breathing"
-            riskScore <= 70 -> "Status: Moderate Risk"
+            riskScore <= 60 -> "Status: Moderate Risk"
             else -> "Status: APNEA DETECTED"
         }
 
-        Box(contentAlignment = Alignment.Center) {
-            SleepScoreRing(
-                targetScore = riskScore,
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier.size(200.dp)
+            ) {
+                SleepScoreRing(
+                    targetScore = riskScore, // The ring arc represents risk percentage
+                    color = riskColor,
+                    showText = false,
+                    modifier = Modifier.size(160.dp)
+                )
+                
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        text = "${sessionSource?.totalApneaEvents ?: 0}",
+                        style = MaterialTheme.typography.displayLarge.copy(fontSize = 56.sp),
+                        color = Color.White
+                    )
+                    Text(
+                        text = "APNEA EVENTS",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color.Gray
+                    )
+                }
+            }
+            
+            Spacer(modifier = Modifier.height(8.dp))
+            
+            Text(
+                text = "Risk Score: $riskScore%",
+                style = MaterialTheme.typography.titleMedium,
                 color = riskColor,
-                modifier = Modifier.width(180.dp)
+                fontWeight = FontWeight.Bold
             )
         }
         
@@ -129,8 +161,7 @@ fun DashboardScreen(
             Text(
                 text = riskStatus,
                 color = riskColor,
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.titleLarge,
                 modifier = Modifier
                     .background(DeepNavy, RoundedCornerShape(12.dp))
                     .padding(horizontal = 16.dp, vertical = 6.dp)
@@ -138,11 +169,13 @@ fun DashboardScreen(
             
             Spacer(modifier = Modifier.height(8.dp))
             
+            val timerText = if (countdown > 0) "Next update in: ${countdown}s" else "Analyzing Edge ML..."
+            val timerColor = if (countdown > 0) Color.Gray else SoftYellow
+
             Text(
-                text = "Next update in: ${countdown}s",
-                color = Color.Gray,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Medium
+                text = timerText,
+                color = timerColor,
+                style = MaterialTheme.typography.labelLarge
             )
         }
         
@@ -154,54 +187,38 @@ fun DashboardScreen(
             horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             StatCard(
-                title = "Apnea Events",
-                value = "$safeApneas",
-                iconColor = CoralRed,
-                showAlertDot = safeApneas > 0,
-                modifier = Modifier.weight(1f)
-            )
-            StatCard(
                 title = "Restless Events",
-                value = "$safeRestless",
+                value = "${sessionSource?.totalRestlessEvents ?: 0}",
                 iconColor = RestlessOrange,
                 modifier = Modifier.weight(1f)
             )
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
             StatCard(
                 title = "Avg Oxygen",
-                value = "$safeAvgSpO2%",
+                value = "${sessionSource?.avgSpO2 ?: 0}%",
                 iconColor = Cyan,
                 modifier = Modifier.weight(1f)
             )
-            StatCard(
-                title = "Min SpO2",
-                value = "$safeMinSpO2%",
-                iconColor = CoralRed,
-                textColor = CoralRed,
-                modifier = Modifier.weight(1f)
-            )
         }
-        
+
         Spacer(modifier = Modifier.height(16.dp))
 
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            StatCard(
+                title = "Min SpO2",
+                value = "${sessionSource?.lowestSpO2 ?: 0}%",
+                iconColor = CoralRed,
+                textColor = if ((sessionSource?.lowestSpO2 ?: 0) < 90 && (sessionSource?.lowestSpO2 ?: 0) > 0) CoralRed else Color.White,
+                modifier = Modifier.weight(1f)
+            )
             StatCard(
                 title = "Avg BPM",
                 value = "$safeBpm",
                 iconColor = SoftPurple,
                 modifier = Modifier.weight(1f)
             )
-            Spacer(modifier = Modifier.weight(1f))
         }
         
         Spacer(modifier = Modifier.height(40.dp))
@@ -247,6 +264,31 @@ fun DashboardScreen(
         }
         
         Spacer(modifier = Modifier.height(32.dp))
+
+        // --- REPORT DOWNLOAD BUTTON (PRODUCTIZATION PHASE) ---
+        Button(
+            onClick = { onDownloadReport(context) },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(56.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = CoralRed),
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            Icon(
+                painter = painterResource(id = R.drawable.ic_apnea_logo), 
+                contentDescription = null,
+                modifier = Modifier.size(20.dp),
+                tint = Color.White
+            )
+            Spacer(modifier = Modifier.width(12.dp))
+            Text(
+                text = "Download Clinical Summary",
+                style = MaterialTheme.typography.titleMedium,
+                color = Color.White
+            )
+        }
+        
+        Spacer(modifier = Modifier.height(48.dp))
     }
 }
 
@@ -293,10 +335,10 @@ fun StatCard(
                         Box(modifier = Modifier.size(12.dp).background(iconColor, CircleShape))
                     }
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text(value, color = textColor, fontSize = 28.sp, fontWeight = FontWeight.Bold)
+                    Text(value, color = textColor, style = MaterialTheme.typography.displayMedium)
                 }
                 
-                Text(title, color = Color.Gray, fontSize = 13.sp)
+                Text(title, color = Color.Gray, style = MaterialTheme.typography.labelMedium)
             }
         }
     }

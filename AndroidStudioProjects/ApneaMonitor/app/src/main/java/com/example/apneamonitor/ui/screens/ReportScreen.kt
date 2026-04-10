@@ -63,8 +63,7 @@ fun ReportScreen(
             Text(
                 text = "ApneaMonitor",
                 color = Color.White,
-                fontSize = 24.sp,
-                fontWeight = FontWeight.Bold
+                style = MaterialTheme.typography.headlineMedium
             )
         }
         
@@ -73,8 +72,7 @@ fun ReportScreen(
         Text(
             text = "Clinical Sleep Summary",
             color = Cyan,
-            fontSize = 14.sp,
-            fontWeight = FontWeight.Medium
+            style = MaterialTheme.typography.labelLarge
         )
         Spacer(modifier = Modifier.height(32.dp))
 
@@ -89,8 +87,7 @@ fun ReportScreen(
                     Text(
                         text = "Session Overview",
                         color = Color.White,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold
+                        style = MaterialTheme.typography.titleLarge
                     )
                     Spacer(modifier = Modifier.height(12.dp))
 
@@ -107,21 +104,17 @@ fun ReportScreen(
                         "Caution: Your blood oxygen dropped to a critical low of ${latestSession.lowestSpO2}%, indicating hypoxemia episodes directly correlated to breath disruption."
                     }
 
-                    val scoreStr = "The local Random Forest edge model merged your vitals into a composite sleep viability score of ${latestSession.sleepScore} out of 100."
-                    
                     val movementStr = if (latestSession.totalRestlessEvents > 3) {
                         "Actigraphy sensors recorded ${latestSession.totalRestlessEvents} distinct restless events, which highly correlates with potential sleep fragmentation."
                     } else {
                         "Your biomechanical baseline remained calm, recording minimal restless events throughout the cycle."
                     }
 
-                    Text(text = eventsStr, color = Color.LightGray, fontSize = 15.sp, lineHeight = 22.sp)
+                    Text(text = eventsStr, color = Color.LightGray, style = MaterialTheme.typography.bodyLarge)
                     Spacer(modifier = Modifier.height(12.dp))
-                    Text(text = oxygenStr, color = Color.LightGray, fontSize = 15.sp, lineHeight = 22.sp)
+                    Text(text = oxygenStr, color = Color.LightGray, style = MaterialTheme.typography.bodyLarge)
                     Spacer(modifier = Modifier.height(12.dp))
-                    Text(text = movementStr, color = Color.LightGray, fontSize = 15.sp, lineHeight = 22.sp)
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Text(text = scoreStr, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Medium, lineHeight = 22.sp)
+                    Text(text = movementStr, color = Color.LightGray, style = MaterialTheme.typography.bodyLarge)
                 }
             }
 
@@ -156,8 +149,7 @@ fun ReportScreen(
                 ) {
                     Text(
                         text = "PDF Summary",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.labelLarge,
                         textAlign = TextAlign.Center
                     )
                 }
@@ -187,8 +179,7 @@ fun ReportScreen(
                 ) {
                     Text(
                         text = "Export Raw CSV",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.labelLarge,
                         textAlign = TextAlign.Center
                     )
                 }

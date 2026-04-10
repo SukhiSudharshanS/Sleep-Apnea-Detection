@@ -18,26 +18,32 @@ class CsvGenerator(private val context: Context) {
     fun generateAndSaveCsv(session: SleepSessionEntity): Boolean {
         val stringBuilder = StringBuilder()
         
-        // Add CSV Headers
-        stringBuilder.append("TimestampOffset,SpO2,BPM,MovementScore\n")
+        // Add CSV Headers: Added RecordIndex for easier verification of 60s windows
+        stringBuilder.append("RecordIndex,Timestamp,SpO2,BPM,MovementScore,AudioLevel\n")
 
-        val size = minOf(session.spO2Array.size, session.bpmArray.size, session.movementArray.size)
+        val size = maxOf(
+            session.spO2Array.size, 
+            session.bpmArray.size, 
+            session.movementArray.size,
+            session.audioArray.size
+        )
         val durationMillis = session.endTimeStamp - session.startTimeStamp
         
         for (i in 0 until size) {
-            // Compute a naive timestamp offset if needed, or simply write absolute time
             val offsetMillis = if (size > 1) (durationMillis * i) / (size - 1) else 0L
             val currentTimestamp = session.startTimeStamp + offsetMillis
             
-            // Format time using a standard format or just offset in ms. We'll provide actual time
-            val timeFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+            // Higher precision for clinical data verification
+            val timeFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.getDefault())
             val timeString = timeFormat.format(Date(currentTimestamp))
             
-            val spo2 = session.spO2Array[i]
-            val bpm = session.bpmArray[i]
-            val movement = session.movementArray[i]
+            val spo2 = session.spO2Array.getOrNull(i) ?: 0
+            val bpm = session.bpmArray.getOrNull(i) ?: 0
+            val movement = session.movementArray.getOrNull(i) ?: 0
+            val audio = session.audioArray.getOrNull(i) ?: 0
             
-            stringBuilder.append("$timeString,$spo2,$bpm,$movement\n")
+            val recordIndex = i + 1
+            stringBuilder.append("$recordIndex,$timeString,$spo2,$bpm,$movement,$audio\n")
         }
 
         // Save using Scoped Storage (MediaStore)

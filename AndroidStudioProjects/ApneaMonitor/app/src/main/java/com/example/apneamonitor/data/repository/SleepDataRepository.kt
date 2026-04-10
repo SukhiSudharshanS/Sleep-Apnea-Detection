@@ -12,13 +12,80 @@ import java.util.Date
 import java.util.Locale
 
 class SleepDataRepository(private val sleepSessionDao: SleepSessionDao) {
-    private val fusionModel = ApneaFusionModel()
-
     // Exposed Flows to ViewModel
     val latestSessionFlow: Flow<SleepSessionEntity?> = sleepSessionDao.getLatestSessionFlow()
+    val activeSessionFlow: Flow<SleepSessionEntity?> = sleepSessionDao.getActiveSessionFlow()
     val weeklyTrendFlow: Flow<List<WeeklyTrendTuple>> = sleepSessionDao.getWeeklyTrendFlow()
 
-    // Process edge arrays, run ML hooks, and cache to Room
+    suspend fun getActiveSession() = sleepSessionDao.getActiveSession()
+
+    /**
+     * Updates the persistent 'Active' session record. If no active session exists, it starts one.
+     * Enforces the Single Source of Truth by storing live samples directly in Room.
+     */
+    suspend fun updateActiveSession(
+        spo2: Int,
+        bpm: Int,
+        movement: Int,
+        audio: Int,
+        isApneaEvent: Boolean = false,
+        isRestlessEvent: Boolean = false,
+        appendSample: Boolean = true
+    ) = withContext(Dispatchers.IO) {
+        val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+        val dateStr = sdf.format(Date())
+        
+        val currentActive = sleepSessionDao.getActiveSession()
+        
+        val updatedSession = if (currentActive == null) {
+            // Initialize new clinical session
+            SleepSessionEntity(
+                dateString = dateStr,
+                startTimeStamp = System.currentTimeMillis(),
+                endTimeStamp = System.currentTimeMillis(),
+                totalApneaEvents = if (isApneaEvent) 1 else 0,
+                totalRestlessEvents = if (isRestlessEvent) 1 else 0,
+                avgSpO2 = spo2,
+                lowestSpO2 = if (spo2 > 0) spo2 else 100,
+                avgBpm = bpm,
+                spO2Array = if (spo2 > 0) listOf(spo2) else emptyList(),
+                bpmArray = if (bpm > 0) listOf(bpm) else emptyList(),
+                movementArray = listOf(movement),
+                audioArray = listOf(audio),
+                apneaAlertTimestamps = if (isApneaEvent) listOf(System.currentTimeMillis()) else emptyList(),
+                isActive = true
+            )
+        } else {
+            // Append to existing session (if flag is true)
+            val newSpO2List = if (appendSample && spo2 > 0) currentActive.spO2Array + spo2 else currentActive.spO2Array
+            val newBpmList = if (appendSample && bpm > 0) currentActive.bpmArray + bpm else currentActive.bpmArray
+            val newMovementList = if (appendSample) currentActive.movementArray + movement else currentActive.movementArray
+            val newAudioList = if (appendSample) currentActive.audioArray + audio else currentActive.audioArray
+            val newAlerts = if (isApneaEvent) currentActive.apneaAlertTimestamps + System.currentTimeMillis() else currentActive.apneaAlertTimestamps
+
+            currentActive.copy(
+                endTimeStamp = System.currentTimeMillis(),
+                totalApneaEvents = if (isApneaEvent) currentActive.totalApneaEvents + 1 else currentActive.totalApneaEvents,
+                totalRestlessEvents = if (isRestlessEvent) currentActive.totalRestlessEvents + 1 else currentActive.totalRestlessEvents,
+                avgSpO2 = if (newSpO2List.isNotEmpty()) newSpO2List.average().toInt() else 0,
+                lowestSpO2 = if (spo2 in 1 until currentActive.lowestSpO2) spo2 else currentActive.lowestSpO2,
+                avgBpm = if (newBpmList.isNotEmpty()) newBpmList.average().toInt() else 0,
+                spO2Array = newSpO2List,
+                bpmArray = newBpmList,
+                movementArray = newMovementList,
+                audioArray = newAudioList,
+                apneaAlertTimestamps = newAlerts
+            )
+        }
+        
+        sleepSessionDao.insertSession(updatedSession)
+    }
+
+    suspend fun finalizeSession() = withContext(Dispatchers.IO) {
+        sleepSessionDao.deactivateAllSessions()
+    }
+
+    // Process edge arrays (Historical Sync)
     suspend fun processAndCacheBulkNightData(
         spO2Data: List<Int>,
         bpmData: List<Int>,
@@ -27,37 +94,19 @@ class SleepDataRepository(private val sleepSessionDao: SleepSessionDao) {
     ) = withContext(Dispatchers.Default) {
         if (spO2Data.isEmpty() || bpmData.isEmpty()) return@withContext
 
-        // 1. Structural Pre-processing
-        val avgSpo2 = spO2Data.average().toInt()
-        val lowestSpo2 = spO2Data.minOrNull() ?: 0
-        val avgBpm = bpmData.average().toInt()
-        val totalApneas = apneaAlerts.size
-        val restlessEpochs = movementData.count { it > 3 } // Parse Restless Events (> 3 intense movement threshold = restless epoch)
+        val avgSpo2 = spO2Data.filter { it > 0 }.let { if (it.isEmpty()) 0 else it.average().toInt() }
+        val lowestSpo2 = spO2Data.filter { it > 0 }.minOrNull() ?: 100
+        val avgBpm = bpmData.filter { it > 0 }.let { if (it.isEmpty()) 0 else it.average().toInt() }
+        val restlessEpochs = movementData.count { it > 6 } 
 
-        // 2. Machine Learning Pipeline Execution
-        // Feed statistical metrics into RF Model
-        val rfOutput = fusionModel.processStatisticalFeatures(listOf(avgSpo2, lowestSpo2, avgBpm, totalApneas))
-        
-        // Feed raw byte array into CNN (simulated byte array payload for CNN ingestion)
-        val rawBuffer = ByteArray(spO2Data.size * 2) // mock serialization
-        val cnnOutput = fusionModel.processRawTimeSeries(rawBuffer)
-        
-        // Calculate unified Sleep Score taking Apnea penalty into account
-        var sleepScore = fusionModel.calculateApneaRiskIndex(rfOutput, cnnOutput)
-        sleepScore -= (totalApneas * 5) // Penalize score per apnea event
-        if (sleepScore < 0) sleepScore = 0
-        if (sleepScore > 100) sleepScore = 100
-
-        // 3. Schema Formatting
         val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
         val dateStr = sdf.format(Date())
 
         val sessionEntity = SleepSessionEntity(
             dateString = dateStr,
-            startTimeStamp = System.currentTimeMillis() - (8 * 3600 * 1000), // Mock 8 hours ago
+            startTimeStamp = System.currentTimeMillis() - (8 * 3600 * 1000), // Defaulting to 8h for sync data
             endTimeStamp = System.currentTimeMillis(),
-            sleepScore = sleepScore,
-            totalApneaEvents = totalApneas,
+            totalApneaEvents = apneaAlerts.size,
             totalRestlessEvents = restlessEpochs,
             avgSpO2 = avgSpo2,
             lowestSpO2 = lowestSpo2,
@@ -65,10 +114,11 @@ class SleepDataRepository(private val sleepSessionDao: SleepSessionDao) {
             spO2Array = spO2Data,
             bpmArray = bpmData,
             movementArray = movementData,
-            apneaAlertTimestamps = apneaAlerts
+            audioArray = List(spO2Data.size) { 0 }, // Bulk data from legacy ring doesn't have audio
+            apneaAlertTimestamps = apneaAlerts,
+            isActive = false
         )
 
-        // 4. Persistence into SQLite Room Cache safely off the Main Thread
         withContext(Dispatchers.IO) {
             sleepSessionDao.insertSession(sessionEntity)
         }

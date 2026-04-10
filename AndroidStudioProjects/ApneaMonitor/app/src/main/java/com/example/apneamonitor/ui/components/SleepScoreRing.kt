@@ -29,6 +29,7 @@ import com.example.apneamonitor.ui.theme.DeepNavy
 fun SleepScoreRing(
     targetScore: Int,
     color: Color = Cyan,
+    showText: Boolean = true,
     modifier: Modifier = Modifier
 ) {
     var animationPlayed by remember { mutableStateOf(false) }
@@ -74,11 +75,13 @@ fun SleepScoreRing(
             )
         }
 
-        Text(
-            text = "${(curPercentage.value).toInt()}",
-            color = color,
-            fontSize = 64.sp,
-            fontWeight = FontWeight.ExtraBold
-        )
+        if (showText) {
+            Text(
+                text = "${(curPercentage.value).toInt()}",
+                color = color,
+                fontSize = 64.sp,
+                fontWeight = FontWeight.ExtraBold
+            )
+        }
     }
 }
