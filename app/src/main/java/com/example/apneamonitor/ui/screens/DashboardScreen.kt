@@ -29,6 +29,7 @@ import com.example.apneamonitor.AppBluetoothManager
 import com.example.apneamonitor.R
 import com.example.apneamonitor.data.local.SleepSessionEntity
 import com.example.apneamonitor.data.local.WeeklyTrendTuple
+import com.example.apneamonitor.ui.components.GlassPanel
 import com.example.apneamonitor.ui.components.InteractiveDualLineChart
 import com.example.apneamonitor.ui.components.SleepScoreRing
 import com.example.apneamonitor.ui.components.WeeklyTrendBarChart
@@ -59,12 +60,10 @@ fun DashboardScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(MidnightBlue)
             .verticalScroll(scrollState)
-            .padding(horizontal = 24.dp, vertical = 32.dp),
+            .padding(horizontal = 24.dp, vertical = 28.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // --- HEADER SECTION ---
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
@@ -84,16 +83,18 @@ fun DashboardScreen(
                 Text(
                     text = "ApneaMonitor",
                     color = OffWhite,
-                    style = MaterialTheme.typography.headlineMedium
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.SemiBold
                 )
             }
 
             FilledTonalIconButton(
                 onClick = onManualConnectTap,
                 colors = IconButtonDefaults.filledTonalIconButtonColors(
-                    containerColor = DeepNavy,
+                    containerColor = GlassSurfaceStrong,
                     contentColor = OffWhite
-                )
+                ),
+                modifier = Modifier.border(1.dp, GlassBorder, CircleShape)
             ) {
                 Icon(
                     imageVector = Icons.Default.Sync,
@@ -102,23 +103,25 @@ fun DashboardScreen(
             }
         }
         Spacer(modifier = Modifier.height(12.dp))
-        
-        // Dynamic Sync Pill
+
         val (pillText, pillBg, pillTextCol) = when (connectionState) {
             AppBluetoothManager.ConnectionState.CONNECTED -> Triple("Synced to Device", DarkGreen, LightGreen)
             AppBluetoothManager.ConnectionState.AUTO_SYNCING -> Triple("Auto-Syncing...", Color(0xFF4A4A00), SoftYellow)
             AppBluetoothManager.ConnectionState.CONNECTING -> Triple("Connecting...", Color(0xFF4A4A00), SoftYellow)
-            AppBluetoothManager.ConnectionState.SCANNING -> Triple("Scanning...", DeepNavy, MutedText)
-            else -> Triple("Disconnected (Tap to Sync)", DeepNavy, MutedText)
+            AppBluetoothManager.ConnectionState.SCANNING -> Triple("Scanning...", GlassSurfaceStrong, OffWhite)
+            else -> Triple("Disconnected (Tap to Sync)", GlassSurfaceStrong, OffWhite)
         }
 
-        Card(
+        Surface(
             shape = RoundedCornerShape(24.dp),
-            colors = CardDefaults.cardColors(containerColor = pillBg),
-            modifier = Modifier.clickable { onForceSyncTap() }
+            color = pillBg.copy(alpha = if (connectionState == AppBluetoothManager.ConnectionState.CONNECTED) 0.78f else 0.28f),
+            tonalElevation = 0.dp,
+            modifier = Modifier
+                .clickable { onForceSyncTap() }
+                .border(1.dp, GlassBorder, RoundedCornerShape(24.dp))
         ) {
             Row(
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
+                modifier = Modifier.padding(horizontal = 18.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Box(modifier = Modifier.size(8.dp).background(pillTextCol, CircleShape))
@@ -135,20 +138,21 @@ fun DashboardScreen(
             },
             modifier = Modifier
                 .fillMaxWidth()
-                .height(52.dp),
+                .height(58.dp),
             colors = if (isSessionRunning) {
                 ButtonDefaults.outlinedButtonColors(
-                    containerColor = DeepNavy,
+                    containerColor = GlassSurfaceStrong,
                     contentColor = CoralRed
                 )
             } else {
                 ButtonDefaults.buttonColors(
-                    containerColor = LightGreen,
-                    contentColor = MidnightBlue
+                    containerColor = LightGreen.copy(alpha = 0.92f),
+                    contentColor = BackdropStart
                 )
             },
-            border = if (isSessionRunning) BorderStroke(1.dp, CoralRed.copy(alpha = 0.6f)) else null,
-            shape = RoundedCornerShape(16.dp)
+            border = if (isSessionRunning) BorderStroke(1.dp, CoralRed.copy(alpha = 0.6f)) else BorderStroke(1.dp, GlassBorder),
+            shape = RoundedCornerShape(22.dp),
+            elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp)
         ) {
             Text(
                 text = if (isSessionRunning) "Stop Monitoring" else "Start New Session",
@@ -166,45 +170,54 @@ fun DashboardScreen(
             else -> CoralRed
         }
 
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.fillMaxWidth()
+        GlassPanel(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(36.dp),
+            padding = PaddingValues(horizontal = 24.dp, vertical = 28.dp)
         ) {
-            Box(
-                contentAlignment = Alignment.Center,
-                modifier = Modifier.size(228.dp)
+            Text(
+                text = "Respiratory Snapshot",
+                color = MutedText,
+                style = MaterialTheme.typography.labelLarge
+            )
+            Spacer(modifier = Modifier.height(20.dp))
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.fillMaxWidth()
             ) {
-                SleepScoreRing(
-                    targetScore = riskScore,
-                    color = riskColor,
-                    showText = false,
-                    modifier = Modifier.size(188.dp)
-                )
-
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier.size(228.dp)
                 ) {
-                    Text(
-                        text = "$riskScore%",
-                        style = MaterialTheme.typography.displayLarge.copy(fontSize = 54.sp),
-                        color = OffWhite
+                    SleepScoreRing(
+                        targetScore = riskScore,
+                        color = riskColor,
+                        showText = false,
+                        modifier = Modifier.size(188.dp)
                     )
-                    Text(
-                        text = "RISK INDEX",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MutedText,
-                        letterSpacing = 1.8.sp
-                    )
+
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Text(
+                            text = "$riskScore%",
+                            style = MaterialTheme.typography.displayLarge.copy(fontSize = 54.sp),
+                            color = OffWhite
+                        )
+                        Text(
+                            text = "RISK INDEX",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MutedText,
+                            letterSpacing = 1.8.sp
+                        )
+                    }
                 }
             }
-
-            Spacer(modifier = Modifier.height(12.dp))
         }
 
-        Spacer(modifier = Modifier.height(36.dp))
+        Spacer(modifier = Modifier.height(24.dp))
 
-        // --- VITAL STATS GRID ---
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(16.dp)
@@ -246,30 +259,38 @@ fun DashboardScreen(
 
         Spacer(modifier = Modifier.height(40.dp))
 
-        // --- INTERACTIVE CHARTS ---
         if (latestSession != null && latestSession.spO2Array.isNotEmpty()) {
-            Text("Overnight Cycle", color = OffWhite, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.Start))
-            Spacer(modifier = Modifier.height(16.dp))
-            InteractiveDualLineChart(
-                spO2Data = latestSession.spO2Array,
-                bpmData = latestSession.bpmArray,
-                movementData = latestSession.movementArray
-            )
+            GlassPanel(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(30.dp)
+            ) {
+                Text("Overnight Cycle", color = OffWhite, fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.height(16.dp))
+                InteractiveDualLineChart(
+                    spO2Data = latestSession.spO2Array,
+                    bpmData = latestSession.bpmArray,
+                    movementData = latestSession.movementArray
+                )
+            }
             
             Spacer(modifier = Modifier.height(32.dp))
             
             if (trendTuple.isNotEmpty()) {
-                Text("Weekly Trend", color = OffWhite, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.Start))
-                Spacer(modifier = Modifier.height(16.dp))
-                WeeklyTrendBarChart(trends = trendTuple)
+                GlassPanel(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(30.dp)
+                ) {
+                    Text("Weekly Trend", color = OffWhite, fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.height(16.dp))
+                    WeeklyTrendBarChart(trends = trendTuple)
+                }
             }
         } else {
-            Card(
+            GlassPanel(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(220.dp),
-                colors = CardDefaults.cardColors(containerColor = DeepNavy),
-                shape = RoundedCornerShape(16.dp)
+                shape = RoundedCornerShape(30.dp)
             ) {
                 Box(
                     modifier = Modifier.fillMaxSize(), 
@@ -288,20 +309,21 @@ fun DashboardScreen(
         
         Spacer(modifier = Modifier.height(32.dp))
 
-        // --- REPORT DOWNLOAD BUTTON (PRODUCTIZATION PHASE) ---
         Button(
             onClick = { onDownloadReport(context) },
             modifier = Modifier
                 .fillMaxWidth()
-                .height(56.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = CoralRed),
-            shape = RoundedCornerShape(12.dp)
+                .height(58.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = GlassSurfaceStrong, contentColor = OffWhite),
+            border = BorderStroke(1.dp, GlassBorder),
+            shape = RoundedCornerShape(22.dp),
+            elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp)
         ) {
             Icon(
                 painter = painterResource(id = R.drawable.ic_apnea_logo), 
                 contentDescription = null,
                 modifier = Modifier.size(20.dp),
-                tint = Color.White
+                tint = CoralRed
             )
             Spacer(modifier = Modifier.width(12.dp))
             Text(
@@ -311,7 +333,7 @@ fun DashboardScreen(
             )
         }
         
-        Spacer(modifier = Modifier.height(48.dp))
+        Spacer(modifier = Modifier.height(112.dp))
     }
 }
 
@@ -324,41 +346,35 @@ fun StatCard(
     valueColor: Color = OffWhite,
     modifier: Modifier = Modifier
 ) {
-    Card(
-        shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(containerColor = DeepNavy),
+    GlassPanel(
         modifier = modifier
-            .height(120.dp)
-            .border(1.dp, SurfaceBorder, RoundedCornerShape(18.dp))
+            .height(136.dp),
+        shape = RoundedCornerShape(28.dp),
+        padding = PaddingValues(18.dp)
     ) {
-        Column(
-            modifier = Modifier
-                .padding(16.dp)
-                .fillMaxSize(),
-            verticalArrangement = Arrangement.SpaceBetween
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(12.dp)
-                        .background(accentColor, CircleShape)
-                )
-                Text(
-                    text = title,
-                    color = MutedText,
-                    style = MaterialTheme.typography.labelLarge
-                )
-            }
-
+            Box(
+                modifier = Modifier
+                    .size(12.dp)
+                    .background(accentColor, CircleShape)
+            )
             Text(
-                text = value,
-                color = valueColor,
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.SemiBold
+                text = title,
+                color = MutedText,
+                style = MaterialTheme.typography.labelLarge
             )
         }
+
+        Spacer(modifier = Modifier.weight(1f))
+
+        Text(
+            text = value,
+            color = valueColor,
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.SemiBold
+        )
     }
 }

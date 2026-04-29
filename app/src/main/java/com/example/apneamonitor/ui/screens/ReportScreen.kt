@@ -1,9 +1,9 @@
 package com.example.apneamonitor.ui.screens
 
 import android.widget.Toast
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
@@ -22,9 +22,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.apneamonitor.R
 import com.example.apneamonitor.data.local.SleepSessionEntity
-import com.example.apneamonitor.ui.theme.Cyan
-import com.example.apneamonitor.ui.theme.DeepNavy
-import com.example.apneamonitor.ui.theme.MidnightBlue
+import com.example.apneamonitor.ui.components.GlassPanel
+import com.example.apneamonitor.ui.theme.*
 import com.example.apneamonitor.utils.CsvGenerator
 import com.example.apneamonitor.utils.PdfGenerator
 import kotlinx.coroutines.Dispatchers
@@ -43,13 +42,12 @@ fun ReportScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(MidnightBlue)
             .verticalScroll(scrollState)
-            .padding(24.dp),
+            .padding(horizontal = 24.dp, vertical = 28.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // --- BRANDED HEADER ---
         Row(
+            modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Image(
@@ -62,65 +60,74 @@ fun ReportScreen(
             )
             Text(
                 text = "ApneaMonitor",
-                color = Color.White,
-                style = MaterialTheme.typography.headlineMedium
+                color = OffWhite,
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.SemiBold
             )
         }
         
         Spacer(modifier = Modifier.height(24.dp))
         
-        Text(
-            text = "Clinical Sleep Summary",
-            color = Cyan,
-            style = MaterialTheme.typography.labelLarge
-        )
-        Spacer(modifier = Modifier.height(32.dp))
+        GlassPanel(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(28.dp),
+            padding = PaddingValues(horizontal = 20.dp, vertical = 18.dp)
+        ) {
+            Text(
+                text = "Clinical Sleep Summary",
+                color = OffWhite,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.SemiBold
+            )
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                text = "A calmer, floating review of the latest recorded sleep session",
+                color = MutedText,
+                style = MaterialTheme.typography.bodyMedium
+            )
+        }
+        Spacer(modifier = Modifier.height(24.dp))
 
         if (latestSession != null) {
-            // Conversational Data Translation UI Map
-            Card(
-                colors = CardDefaults.cardColors(containerColor = DeepNavy),
-                shape = RoundedCornerShape(16.dp),
-                modifier = Modifier.fillMaxWidth()
+            GlassPanel(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(30.dp),
+                padding = PaddingValues(22.dp)
             ) {
-                Column(modifier = Modifier.padding(20.dp)) {
-                    Text(
-                        text = "Session Overview",
-                        color = Color.White,
-                        style = MaterialTheme.typography.titleLarge
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    text = "Session Overview",
+                    color = OffWhite,
+                    style = MaterialTheme.typography.titleLarge
+                )
+                Spacer(modifier = Modifier.height(12.dp))
 
-                    // Sentence parsing logic
-                    val eventsStr = if (latestSession.totalApneaEvents == 0) {
-                        "Excellent sleep cycle. No potential apneic anomalies were recorded by the neural framework."
-                    } else {
-                        "During the 8-hour session, the system detected ${latestSession.totalApneaEvents} potential physiological apnea indications."
-                    }
-
-                    val oxygenStr = if (latestSession.lowestSpO2 >= 90) {
-                        "Your blood oxygen concentration held resiliently at an average of ${latestSession.avgSpO2}%, bottoming out safely at ${latestSession.lowestSpO2}%. This signifies healthy respiratory levels."
-                    } else {
-                        "Caution: Your blood oxygen dropped to a critical low of ${latestSession.lowestSpO2}%, indicating hypoxemia episodes directly correlated to breath disruption."
-                    }
-
-                    val movementStr = if (latestSession.totalRestlessEvents > 3) {
-                        "Actigraphy sensors recorded ${latestSession.totalRestlessEvents} distinct restless events, which highly correlates with potential sleep fragmentation."
-                    } else {
-                        "Your biomechanical baseline remained calm, recording minimal restless events throughout the cycle."
-                    }
-
-                    Text(text = eventsStr, color = Color.LightGray, style = MaterialTheme.typography.bodyLarge)
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Text(text = oxygenStr, color = Color.LightGray, style = MaterialTheme.typography.bodyLarge)
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Text(text = movementStr, color = Color.LightGray, style = MaterialTheme.typography.bodyLarge)
+                val eventsStr = if (latestSession.totalApneaEvents == 0) {
+                    "Excellent sleep cycle. No potential apneic anomalies were recorded by the neural framework."
+                } else {
+                    "During the 8-hour session, the system detected ${latestSession.totalApneaEvents} potential physiological apnea indications."
                 }
+
+                val oxygenStr = if (latestSession.lowestSpO2 >= 90) {
+                    "Your blood oxygen concentration held resiliently at an average of ${latestSession.avgSpO2}%, bottoming out safely at ${latestSession.lowestSpO2}%. This signifies healthy respiratory levels."
+                } else {
+                    "Caution: Your blood oxygen dropped to a critical low of ${latestSession.lowestSpO2}%, indicating hypoxemia episodes directly correlated to breath disruption."
+                }
+
+                val movementStr = if (latestSession.totalRestlessEvents > 3) {
+                    "Actigraphy sensors recorded ${latestSession.totalRestlessEvents} distinct restless events, which highly correlates with potential sleep fragmentation."
+                } else {
+                    "Your biomechanical baseline remained calm, recording minimal restless events throughout the cycle."
+                }
+
+                Text(text = eventsStr, color = MutedText, style = MaterialTheme.typography.bodyLarge)
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(text = oxygenStr, color = MutedText, style = MaterialTheme.typography.bodyLarge)
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(text = movementStr, color = MutedText, style = MaterialTheme.typography.bodyLarge)
             }
 
             Spacer(modifier = Modifier.height(40.dp))
 
-            // Action Triggers
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(16.dp)
@@ -141,11 +148,13 @@ fun ReportScreen(
                             }
                         }
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = Cyan, contentColor = MidnightBlue),
-                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = GlassSurfaceStrong, contentColor = OffWhite),
+                    shape = RoundedCornerShape(22.dp),
+                    border = BorderStroke(1.dp, GlassBorder),
                     modifier = Modifier
                         .weight(1f)
-                        .height(56.dp)
+                        .height(58.dp),
+                    elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp)
                 ) {
                     Text(
                         text = "PDF Summary",
@@ -169,13 +178,13 @@ fun ReportScreen(
                             }
                         }
                     },
-                    // Outline style for the secondary action
-                    colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent, contentColor = Cyan),
-                    shape = RoundedCornerShape(12.dp),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, Cyan),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent, contentColor = OffWhite),
+                    shape = RoundedCornerShape(22.dp),
+                    border = BorderStroke(1.dp, GlassBorder),
                     modifier = Modifier
                         .weight(1f)
-                        .height(56.dp)
+                        .height(58.dp),
+                    elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp)
                 ) {
                     Text(
                         text = "Export Raw CSV",
@@ -184,12 +193,17 @@ fun ReportScreen(
                     )
                 }
             }
+            Spacer(modifier = Modifier.height(112.dp))
         } else {
-            // Null State Mapping
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(top = 48.dp),
+                contentAlignment = Alignment.Center
+            ) {
                 Text(
                     text = "Sync an Edge device to generate a report.",
-                    color = Color.Gray,
+                    color = MutedText,
                     textAlign = TextAlign.Center
                 )
             }

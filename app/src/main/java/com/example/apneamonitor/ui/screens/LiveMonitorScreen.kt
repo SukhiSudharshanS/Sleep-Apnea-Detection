@@ -6,6 +6,7 @@ import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Mic
@@ -15,8 +16,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -32,9 +31,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.apneamonitor.R
-import com.example.apneamonitor.ui.theme.Cyan
-import com.example.apneamonitor.ui.theme.DeepNavy
-import com.example.apneamonitor.ui.theme.MidnightBlue
+import com.example.apneamonitor.ui.components.GlassPanel
+import com.example.apneamonitor.ui.theme.*
 
 @Composable
 fun LiveMonitorScreen(
@@ -73,13 +71,12 @@ fun LiveMonitorScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(MidnightBlue)
             .verticalScroll(scrollState)
-            .padding(24.dp),
+            .padding(horizontal = 24.dp, vertical = 28.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // --- BRANDED HEADER ---
         Row(
+            modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Image(
@@ -92,48 +89,65 @@ fun LiveMonitorScreen(
             )
             Text(
                 text = "ApneaMonitor",
-                color = Color.White,
-                style = MaterialTheme.typography.headlineMedium
+                color = OffWhite,
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.SemiBold
             )
         }
         
         Spacer(modifier = Modifier.height(24.dp))
-        
-        Text(
-            text = "Live Diagnostics",
-            color = Cyan,
-            style = MaterialTheme.typography.labelLarge,
-            modifier = Modifier.padding(bottom = 32.dp)
-        )
 
-        // 2x2 Live Metrics Grid
+        GlassPanel(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(28.dp),
+            padding = PaddingValues(horizontal = 20.dp, vertical = 18.dp)
+        ) {
+            Text(
+                text = "Live Diagnostics",
+                color = OffWhite,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.SemiBold
+            )
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                text = "Streaming direct telemetry from the connected device",
+                color = MutedText,
+                style = MaterialTheme.typography.bodyMedium
+            )
+        }
+
+        Spacer(modifier = Modifier.height(20.dp))
+
         Column(
             modifier = Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 LiveMetricCard(
                     title = "O2 %",
                     value = "$spo2",
+                    accentColor = LightGreen,
                     modifier = Modifier.weight(1f)
                 )
 
                 LiveMetricCard(
                     title = "BPM",
                     value = "$bpm",
+                    accentColor = GlassGlow,
                     modifier = Modifier.weight(1f)
                 )
             }
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 LiveMetricCard(
                     title = "Motion",
                     value = "$movement",
+                    accentColor = SoftYellow,
                     progress = movement / 10f,
                     modifier = Modifier.weight(1f)
                 )
@@ -142,12 +156,14 @@ fun LiveMonitorScreen(
                     title = "Audio Level",
                     value = "$audioLevel",
                     icon = Icons.Default.Mic,
+                    accentColor = SoftPurple,
                     progress = audioLevel / 10f,
                     modifier = Modifier.weight(1f)
                 )
             }
         }
 
+        Spacer(modifier = Modifier.height(104.dp))
     }
 }
 
@@ -155,49 +171,63 @@ fun LiveMonitorScreen(
 fun LiveMetricCard(
     title: String, 
     value: String, 
+    accentColor: Color,
     icon: ImageVector? = null, 
     progress: Float? = null,
     modifier: Modifier = Modifier
 ) {
-    Card(
+    GlassPanel(
         modifier = modifier.aspectRatio(1f),
-        colors = CardDefaults.cardColors(containerColor = DeepNavy),
-        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
-        shape = RoundedCornerShape(16.dp)
+        shape = RoundedCornerShape(28.dp),
+        padding = PaddingValues(18.dp)
     ) {
         Column(
             modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally
+            verticalArrangement = Arrangement.SpaceBetween
         ) {
-            if (icon != null) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = title,
-                    tint = Cyan,
-                    modifier = Modifier.size(28.dp)
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(12.dp)
+                        .background(accentColor, androidx.compose.foundation.shape.CircleShape)
                 )
-                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = title,
+                    color = MutedText,
+                    style = MaterialTheme.typography.labelLarge
+                )
             }
-            Text(
-                text = value,
-                color = Cyan,
-                style = MaterialTheme.typography.displayMedium
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = title,
-                color = Color.Gray,
-                style = MaterialTheme.typography.labelMedium
-            )
+
+            Column(
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                if (icon != null) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = title,
+                        tint = accentColor,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+                Text(
+                    text = value,
+                    color = OffWhite,
+                    style = MaterialTheme.typography.displayMedium
+                )
+            }
 
             if (progress != null) {
-                Spacer(modifier = Modifier.height(12.dp))
                 LinearProgressIndicator(
                     progress = progress,
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp).height(4.dp),
-                    color = Cyan,
-                    trackColor = Color.Gray.copy(alpha = 0.2f),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(6.dp)
+                        .border(1.dp, GlassBorder, RoundedCornerShape(50)),
+                    color = accentColor,
+                    trackColor = GlassSurfaceStrong,
                     strokeCap = androidx.compose.ui.graphics.StrokeCap.Round
                 )
             }

@@ -10,7 +10,12 @@ import androidx.activity.compose.setContent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Info
@@ -18,7 +23,12 @@ import androidx.compose.material.icons.filled.List
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -28,10 +38,7 @@ import com.example.apneamonitor.ui.screens.DashboardScreen
 import com.example.apneamonitor.ui.screens.LiveMonitorScreen
 import com.example.apneamonitor.ui.screens.ReportScreen
 import com.example.apneamonitor.ui.theme.ApneaMonitorTheme
-import com.example.apneamonitor.ui.theme.DeepNavy
-import com.example.apneamonitor.ui.theme.MutedText
-import com.example.apneamonitor.ui.theme.OffWhite
-import com.example.apneamonitor.ui.theme.SurfaceLighter
+import com.example.apneamonitor.ui.theme.*
 import com.example.apneamonitor.viewmodel.ApneaViewModel
 import com.example.apneamonitor.viewmodel.ApneaViewModelFactory
 
@@ -95,81 +102,101 @@ fun ApneaMainScaffold(viewModel: ApneaViewModel) {
         }
     }
 
-    Scaffold(
-        bottomBar = {
-            val navBackStackEntry by navController.currentBackStackEntryAsState()
-            val currentRoute = navBackStackEntry?.destination?.route
-
-            if (currentRoute != "splash") {
-                NavigationBar(containerColor = DeepNavy, contentColor = OffWhite) {
-                    NavigationBarItem(
-                        selected = currentRoute == "dashboard",
-                    onClick = {
-                        navController.navigate("dashboard") {
-                            popUpTo(navController.graph.startDestinationId) { saveState = true }
-                            launchSingleTop = true
-                            restoreState = true
-                        }
-                    },
-                    icon = { Icon(Icons.Default.Home, contentDescription = "Dashboard") },
-                    label = { Text("Dashboard") },
-                    colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = OffWhite,
-                        selectedTextColor = OffWhite,
-                        indicatorColor = SurfaceLighter,
-                        unselectedIconColor = MutedText,
-                        unselectedTextColor = MutedText
-                    )
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(
+                brush = Brush.verticalGradient(
+                    colors = listOf(BackdropStart, BackdropMid, BackdropEnd)
                 )
+            )
+    ) {
+        Scaffold(
+            containerColor = Color.Transparent,
+            bottomBar = {
+                val navBackStackEntry by navController.currentBackStackEntryAsState()
+                val currentRoute = navBackStackEntry?.destination?.route
 
-                NavigationBarItem(
-                    selected = currentRoute == "live_monitor",
-                    onClick = {
-                        navController.navigate("live_monitor") {
-                            popUpTo(navController.graph.startDestinationId) { saveState = true }
-                            launchSingleTop = true
-                            restoreState = true
-                        }
-                    },
-                    icon = { Icon(Icons.Default.Info, contentDescription = "Live") },
-                    label = { Text("Live Monitor") },
-                    colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = OffWhite,
-                        selectedTextColor = OffWhite,
-                        indicatorColor = SurfaceLighter,
-                        unselectedIconColor = MutedText,
-                        unselectedTextColor = MutedText
-                    )
-                )
+                if (currentRoute != "splash") {
+                    Box(modifier = Modifier.padding(horizontal = 18.dp, vertical = 14.dp)) {
+                        NavigationBar(
+                            containerColor = GlassSurfaceStrong,
+                            contentColor = OffWhite,
+                            tonalElevation = 0.dp,
+                            modifier = Modifier
+                                .shadow(18.dp, RoundedCornerShape(28.dp), clip = false)
+                                .clip(RoundedCornerShape(28.dp))
+                                .border(1.dp, GlassBorder, RoundedCornerShape(28.dp))
+                        ) {
+                            NavigationBarItem(
+                                selected = currentRoute == "dashboard",
+                                onClick = {
+                                    navController.navigate("dashboard") {
+                                        popUpTo(navController.graph.startDestinationId) { saveState = true }
+                                        launchSingleTop = true
+                                        restoreState = true
+                                    }
+                                },
+                                icon = { Icon(Icons.Default.Home, contentDescription = "Dashboard") },
+                                label = { Text("Dashboard") },
+                                colors = NavigationBarItemDefaults.colors(
+                                    selectedIconColor = OffWhite,
+                                    selectedTextColor = OffWhite,
+                                    indicatorColor = GlassSurface,
+                                    unselectedIconColor = MutedText,
+                                    unselectedTextColor = MutedText
+                                )
+                            )
 
-                NavigationBarItem(
-                    selected = currentRoute == "report",
-                    onClick = {
-                        navController.navigate("report") {
-                            popUpTo(navController.graph.startDestinationId) { saveState = true }
-                            launchSingleTop = true
-                            restoreState = true
+                            NavigationBarItem(
+                                selected = currentRoute == "live_monitor",
+                                onClick = {
+                                    navController.navigate("live_monitor") {
+                                        popUpTo(navController.graph.startDestinationId) { saveState = true }
+                                        launchSingleTop = true
+                                        restoreState = true
+                                    }
+                                },
+                                icon = { Icon(Icons.Default.Info, contentDescription = "Live") },
+                                label = { Text("Live Monitor") },
+                                colors = NavigationBarItemDefaults.colors(
+                                    selectedIconColor = OffWhite,
+                                    selectedTextColor = OffWhite,
+                                    indicatorColor = GlassSurface,
+                                    unselectedIconColor = MutedText,
+                                    unselectedTextColor = MutedText
+                                )
+                            )
+
+                            NavigationBarItem(
+                                selected = currentRoute == "report",
+                                onClick = {
+                                    navController.navigate("report") {
+                                        popUpTo(navController.graph.startDestinationId) { saveState = true }
+                                        launchSingleTop = true
+                                        restoreState = true
+                                    }
+                                },
+                                icon = { Icon(Icons.Default.List, contentDescription = "Report") },
+                                label = { Text("Report") },
+                                colors = NavigationBarItemDefaults.colors(
+                                    selectedIconColor = OffWhite,
+                                    selectedTextColor = OffWhite,
+                                    indicatorColor = GlassSurface,
+                                    unselectedIconColor = MutedText,
+                                    unselectedTextColor = MutedText
+                                )
+                            )
                         }
-                    },
-                    icon = { Icon(Icons.Default.List, contentDescription = "Report") },
-                    label = { Text("Report") },
-                    colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = OffWhite,
-                        selectedTextColor = OffWhite,
-                        indicatorColor = SurfaceLighter,
-                        unselectedIconColor = MutedText,
-                        unselectedTextColor = MutedText
-                    )
-                )
+                    }
+                }
             }
-            } // Close if block
-        }
-    ) { innerPadding ->
-        NavHost(
-            navController = navController,
-            startDestination = "splash",
-            modifier = Modifier.padding(innerPadding)
-        ) {
+        ) { innerPadding ->
+            NavHost(
+                navController = navController,
+                startDestination = "splash",
+                modifier = Modifier.padding(innerPadding)
+            ) {
             composable("splash") {
                 com.example.apneamonitor.ui.screens.SplashScreen(
                     onNavigateNext = {
@@ -256,6 +283,7 @@ fun ApneaMainScaffold(viewModel: ApneaViewModel) {
                     latestSession = latestSession 
                 )
             }
+        }
         }
     }
 }
