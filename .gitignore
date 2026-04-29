@@ -1,3 +1,24 @@
+# IDE & OS
+*.iml
+.gradle
+/local.properties
+.gitconfig
+.idea/
+.vscode/
+/.idea/caches
+/.idea/libraries
+/.idea/modules.xml
+/.idea/workspace.xml
+/.idea/navEditor.xml
+/.idea/assetWizardSettings.xml
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+
+# TensorFlow Deployment (from main)
 deployment/tensorflow1/tensorflow/tools/ 
 deployment/tensorflow1/tensorflow/python/ 
 deployment/tensorflow1/tensorflow/security/ 
@@ -42,4 +63,3 @@ deployment/tensorflow1/tensorflow/workspace.bzl
 .ipynb_checkpoints
 deployment/.DS_Store
 deployment/.ipynb_checkpoints/
- 
