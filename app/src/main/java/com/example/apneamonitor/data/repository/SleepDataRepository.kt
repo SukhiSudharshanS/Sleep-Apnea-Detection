@@ -63,6 +63,8 @@ class SleepDataRepository(private val sleepSessionDao: SleepSessionDao) {
     ) = withContext(Dispatchers.IO) {
         val currentActive = sleepSessionDao.getActiveSession()
         val validSpo2 = if (isValidSpo2(spo2)) spo2 else null
+        val storedSpo2Sample = validSpo2 ?: 0
+        val storedBpmSample = if (bpm > 0) bpm else 0
 
         val updatedSession = if (currentActive == null) {
             val startTimestamp = System.currentTimeMillis()
@@ -75,17 +77,17 @@ class SleepDataRepository(private val sleepSessionDao: SleepSessionDao) {
                 avgSpO2 = validSpo2 ?: 0,
                 lowestSpO2 = validSpo2 ?: 100,
                 avgBpm = if (bpm > 0) bpm else 0,
-                spO2Array = validSpo2?.let(::listOf) ?: emptyList(),
-                bpmArray = if (bpm > 0) listOf(bpm) else emptyList(),
-                movementArray = listOf(movement),
-                audioArray = listOf(audio),
+                spO2Array = if (appendSample) listOf(storedSpo2Sample) else emptyList(),
+                bpmArray = if (appendSample) listOf(storedBpmSample) else emptyList(),
+                movementArray = if (appendSample) listOf(movement) else emptyList(),
+                audioArray = if (appendSample) listOf(audio) else emptyList(),
                 apneaAlertTimestamps = if (isApneaEvent) listOf(System.currentTimeMillis()) else emptyList(),
                 isActive = true
             )
         } else {
             // Append to existing session (if flag is true)
-            val newSpO2List = if (appendSample && validSpo2 != null) currentActive.spO2Array + validSpo2 else currentActive.spO2Array
-            val newBpmList = if (appendSample && bpm > 0) currentActive.bpmArray + bpm else currentActive.bpmArray
+            val newSpO2List = if (appendSample) currentActive.spO2Array + storedSpo2Sample else currentActive.spO2Array
+            val newBpmList = if (appendSample) currentActive.bpmArray + storedBpmSample else currentActive.bpmArray
             val newMovementList = if (appendSample) currentActive.movementArray + movement else currentActive.movementArray
             val newAudioList = if (appendSample) currentActive.audioArray + audio else currentActive.audioArray
             val newAlerts = if (isApneaEvent) currentActive.apneaAlertTimestamps + System.currentTimeMillis() else currentActive.apneaAlertTimestamps
@@ -100,9 +102,9 @@ class SleepDataRepository(private val sleepSessionDao: SleepSessionDao) {
                 endTimeStamp = System.currentTimeMillis(),
                 totalApneaEvents = if (isApneaEvent) currentActive.totalApneaEvents + 1 else currentActive.totalApneaEvents,
                 totalRestlessEvents = if (isRestlessEvent) currentActive.totalRestlessEvents + 1 else currentActive.totalRestlessEvents,
-                avgSpO2 = if (newSpO2List.isNotEmpty()) newSpO2List.average().toInt() else 0,
+                avgSpO2 = newSpO2List.filter(::isValidSpo2).let { if (it.isNotEmpty()) it.average().toInt() else 0 },
                 lowestSpO2 = updatedLowestSpo2,
-                avgBpm = if (newBpmList.isNotEmpty()) newBpmList.average().toInt() else 0,
+                avgBpm = newBpmList.filter { it > 0 }.let { if (it.isNotEmpty()) it.average().toInt() else 0 },
                 spO2Array = newSpO2List,
                 bpmArray = newBpmList,
                 movementArray = newMovementList,
@@ -132,6 +134,7 @@ class SleepDataRepository(private val sleepSessionDao: SleepSessionDao) {
         val lowestSpo2 = validSpo2Data.minOrNull() ?: 100
         val avgBpm = bpmData.filter { it > 0 }.let { if (it.isEmpty()) 0 else it.average().toInt() }
         val restlessEpochs = movementData.count { it > 6 } 
+        val alignedLength = listOf(spO2Data.size, bpmData.size, movementData.size).minOrNull() ?: 0
 
         val endTimestamp = System.currentTimeMillis()
 
@@ -144,10 +147,10 @@ class SleepDataRepository(private val sleepSessionDao: SleepSessionDao) {
             avgSpO2 = avgSpo2,
             lowestSpO2 = lowestSpo2,
             avgBpm = avgBpm,
-            spO2Array = validSpo2Data,
-            bpmArray = bpmData,
-            movementArray = movementData,
-            audioArray = List(validSpo2Data.size) { 0 }, // Bulk data from legacy ring doesn't have audio
+            spO2Array = spO2Data.take(alignedLength).map { if (isValidSpo2(it)) it else 0 },
+            bpmArray = bpmData.take(alignedLength).map { if (it > 0) it else 0 },
+            movementArray = movementData.take(alignedLength),
+            audioArray = List(alignedLength) { 0 }, // Bulk data from legacy ring doesn't have audio
             apneaAlertTimestamps = apneaAlerts,
             isActive = false
         )

@@ -86,7 +86,7 @@ class AppBluetoothManager(private val context: Context) {
                 Log.d("ApneaBLE", "Device found: ${sr.device.address}. Starting connection...")
                 
                 isConnecting = true
-                stopScan()
+                stopScan(updateState = false)
                 connectToDevice(sr.device)
             }
         }
@@ -131,8 +131,6 @@ class AppBluetoothManager(private val context: Context) {
 
         override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {
             if (status == BluetoothGatt.GATT_SUCCESS) {
-                simulateChunkedHistoricalSync()
-
                 val service = gatt.getService(SERVICE_UUID)
                 if (service != null) {
                     val liveDataChar = service.getCharacteristic(CHAR_LIVE_DATA_UUID)
@@ -226,25 +224,6 @@ class AppBluetoothManager(private val context: Context) {
         _audioLevel.value = 0
         _apneaAlert.value = 0
         _latestInferenceScore.value = 0
-    }
-
-    // Temporary Mock function for "Chunked Transfer" of past night's data.
-    private fun simulateChunkedHistoricalSync() {
-        _connectionState.value = ConnectionState.AUTO_SYNCING
-        
-        // Mocking an 8-hour sleep session's worth of parsed Arrays 
-        // We shrink standard frequency to fit in memory
-        val mockSpO2 = List(250) { (92..99).random() } 
-        val mockBpm = List(250) { (45..75).random() }
-        // Mock 4 events over the 8hr span
-        val mockApneas = List(4) { System.currentTimeMillis() - (it * 3600000L) }
-        // Mock Movement (mostly 0s, with occasional tossing spikes)
-        val mockMovement = List(250) { if (Math.random() > 0.9) (4..10).random() else (0..2).random() }
-        
-        onHistoricalDataReceived?.invoke(mockSpO2, mockBpm, mockApneas, mockMovement)
-        
-        // Return to normal Connected live view after sync
-        _connectionState.value = ConnectionState.CONNECTED
     }
 
     private fun enableNotificationDescriptor(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic) {
@@ -392,11 +371,14 @@ class AppBluetoothManager(private val context: Context) {
         scanner.startScan(listOf(filter), settings, scanCallback)
     }
 
-    fun stopScan() {
+    fun stopScan(updateState: Boolean = true) {
         scanner?.stopScan(scanCallback)
         if (
-            _connectionState.value == ConnectionState.SCANNING || 
-            _connectionState.value == ConnectionState.AUTO_SYNCING
+            updateState &&
+            (
+                _connectionState.value == ConnectionState.SCANNING ||
+                _connectionState.value == ConnectionState.AUTO_SYNCING
+            )
         ) {
             _connectionState.value = ConnectionState.DISCONNECTED
         }
@@ -416,7 +398,7 @@ class AppBluetoothManager(private val context: Context) {
             isSessionRecording = false
         }
         reconnectJob?.cancel()
-        stopScan()
+        stopScan(updateState = false)
         val gatt = bluetoothGatt
         if (gatt != null) {
             gatt.disconnect()

@@ -5,7 +5,6 @@ import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
@@ -21,7 +20,6 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.foundation.Image
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.ui.Alignment
@@ -31,11 +29,9 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.apneamonitor.R
-import com.example.apneamonitor.ui.theme.CoralRed
 import com.example.apneamonitor.ui.theme.Cyan
 import com.example.apneamonitor.ui.theme.DeepNavy
 import com.example.apneamonitor.ui.theme.MidnightBlue
@@ -152,8 +148,6 @@ fun LiveMonitorScreen(
             }
         }
 
-        Spacer(modifier = Modifier.height(32.dp))
-        AlertBanner(apneaAlert = apneaAlert)
     }
 }
 
@@ -211,39 +205,3 @@ fun LiveMetricCard(
     }
 }
 
-@Composable
-fun AlertBanner(apneaAlert: Int) {
-    val isAlert = apneaAlert == 1
-    
-    val targetColor = if (isAlert) CoralRed else DeepNavy
-    val animatedColor by animateColorAsState(targetValue = targetColor, label = "BannerColor")
-    val textColor = if (isAlert) Color.White else Color.Transparent
-
-    Card(
-        modifier = Modifier.fillMaxWidth().height(80.dp),
-        colors = CardDefaults.cardColors(containerColor = animatedColor),
-        shape = RoundedCornerShape(16.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = if (isAlert) 12.dp else 4.dp)
-    ) {
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
-        ) {
-            if (isAlert) {
-                Text(
-                    text = "Apnea Event Detected",
-                    color = textColor,
-                    style = MaterialTheme.typography.titleLarge,
-                    textAlign = TextAlign.Center
-                )
-            } else {
-                Text(
-                    text = "Status: Normal Breathing",
-                    color = Color.Gray,
-                    style = MaterialTheme.typography.titleMedium,
-                    textAlign = TextAlign.Center
-                )
-            }
-        }
-    }
-}

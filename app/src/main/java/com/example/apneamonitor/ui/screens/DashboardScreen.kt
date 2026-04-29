@@ -105,7 +105,7 @@ fun DashboardScreen(
         
         // Dynamic Sync Pill
         val (pillText, pillBg, pillTextCol) = when (connectionState) {
-            AppBluetoothManager.ConnectionState.CONNECTED -> Triple("Synced to Ring", DarkGreen, LightGreen)
+            AppBluetoothManager.ConnectionState.CONNECTED -> Triple("Synced to Device", DarkGreen, LightGreen)
             AppBluetoothManager.ConnectionState.AUTO_SYNCING -> Triple("Auto-Syncing...", Color(0xFF4A4A00), SoftYellow)
             AppBluetoothManager.ConnectionState.CONNECTING -> Triple("Connecting...", Color(0xFF4A4A00), SoftYellow)
             AppBluetoothManager.ConnectionState.SCANNING -> Triple("Scanning...", DeepNavy, MutedText)

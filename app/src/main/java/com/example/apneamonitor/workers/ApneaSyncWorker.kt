@@ -26,29 +26,39 @@ class ApneaSyncWorker(
     override suspend fun doWork(): Result {
         val appContext = applicationContext as ApneaApplication
         val repository = SleepDataRepository(appContext.database.sleepSessionDao())
-        val bluetoothManager = AppBluetoothManager(appContext)
+        val bluetoothManager = appContext.bluetoothManager
 
         return try {
+            if (bluetoothManager.connectionState.value != AppBluetoothManager.ConnectionState.DISCONNECTED) {
+                Log.w("ApneaSyncWorker", "Skipping background sync because BLE manager is already in use.")
+                return Result.success()
+            }
+
             Log.d("ApneaSyncWorker", "Starting background sync scan...")
+            val previousHistoricalCallback = bluetoothManager.onHistoricalDataReceived
 
             // Wait a max of 30 seconds to find the ring and sync data. 
             // If it doesn't complete, it will be cancelled safely.
-            val payload = withTimeoutOrNull(30_000L) {
-                suspendCancellableCoroutine<BulkPayload> { continuation ->
-                    bluetoothManager.onHistoricalDataReceived = { spo2, bpm, alerts, movement ->
-                        if (continuation.isActive) {
-                            continuation.resume(BulkPayload(spo2, bpm, alerts, movement))
+            val payload = try {
+                withTimeoutOrNull(30_000L) {
+                    suspendCancellableCoroutine<BulkPayload> { continuation ->
+                        bluetoothManager.onHistoricalDataReceived = { spo2, bpm, alerts, movement ->
+                            if (continuation.isActive) {
+                                continuation.resume(BulkPayload(spo2, bpm, alerts, movement))
+                            }
                         }
-                    }
 
-                    // On cancellation, stop scanning or disconnect to prevent leaks
-                    continuation.invokeOnCancellation {
-                        bluetoothManager.stopScan()
-                        bluetoothManager.disconnect()
-                    }
+                        // On cancellation, stop scanning or disconnect to prevent leaks
+                        continuation.invokeOnCancellation {
+                            bluetoothManager.stopScan()
+                            bluetoothManager.disconnect()
+                        }
 
-                    bluetoothManager.startScan(isAutoSync = true)
+                        bluetoothManager.startScan(isAutoSync = true)
+                    }
                 }
+            } finally {
+                bluetoothManager.onHistoricalDataReceived = previousHistoricalCallback
             }
 
             if (payload != null) {
