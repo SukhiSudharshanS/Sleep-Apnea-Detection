@@ -83,7 +83,7 @@ fun WeeklyTrendBarChart(
         FloatEntry(index.toFloat(), tuple.totalApneaEvents.toFloat())
     }
     
-    val chartEntryModelProducer = ChartEntryModelProducer(entries)
+    val chartEntryModelProducer = remember(trends) { ChartEntryModelProducer(entries) }
 
     Chart(
         chart = columnChart(),

@@ -27,6 +27,10 @@ class ApneaViewModel(
     val riskScore: StateFlow<Int> = _riskScore.asStateFlow()
     val timeUntilNextAssessment = MutableStateFlow(60)
 
+    // Tracks whether the user has explicitly started a session.
+    // Gates the telemetry sink so it never auto-creates phantom sessions.
+    private val _isSessionActive = MutableStateFlow(false)
+
     // Expose Repository flows as Compose-friendly StateFlows (Single Source of Truth)
     val latestSession: StateFlow<SleepSessionEntity?> = repository.latestSessionFlow
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
@@ -94,10 +98,13 @@ class ApneaViewModel(
                 val isRestlessJerk =
                     movementJump >= 5 && (currentTime - lastRestlessEventTime) > 10_000L
 
-                // Only update if we are connected and receiving valid data
+                // Only write to DB when the user has explicitly started a session.
+                // Allow write if vitals are valid OR if a restless jerk was detected
+                // (movement can spike even if finger briefly lifts off the sensor).
                 if (
+                    _isSessionActive.value &&
                     connectionState.value == AppBluetoothManager.ConnectionState.CONNECTED &&
-                    (spo2 > 0 || bpm > 0)
+                    (spo2 > 0 || bpm > 0 || isRestlessJerk)
                 ) {
                     repository.updateActiveSession(
                         spo2 = spo2,
@@ -154,6 +161,7 @@ class ApneaViewModel(
     fun startNewSession() {
         viewModelScope.launch {
             resetSessionUiState()
+            _isSessionActive.value = true
             bluetoothManager.setSessionRecording(true)
             repository.startNewSession()
         }
@@ -161,6 +169,7 @@ class ApneaViewModel(
 
     fun stopSession() {
         viewModelScope.launch {
+            _isSessionActive.value = false
             bluetoothManager.setSessionRecording(false)
             repository.finalizeSession()
             resetSessionUiState()
@@ -169,6 +178,7 @@ class ApneaViewModel(
 
     fun disconnect() {
         viewModelScope.launch {
+            _isSessionActive.value = false
             bluetoothManager.setSessionRecording(false)
             repository.finalizeSession()
             resetSessionUiState()
