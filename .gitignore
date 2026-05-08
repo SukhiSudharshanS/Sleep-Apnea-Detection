@@ -1,6 +1,7 @@
 # IDE & OS
 *.iml
 .gradle
+.gradle-user-home/
 /local.properties
 .gitconfig
 .idea/

@@ -59,7 +59,7 @@ fun SplashScreen(onNavigateNext: () -> Unit) {
         verticalArrangement = Arrangement.Center
     ) {
         Image(
-            painter = painterResource(id = R.drawable.ic_apnea_logo),
+            painter = painterResource(id = R.drawable.ic_app_logo_new),
             contentDescription = "Apnea Monitor Logo",
             modifier = Modifier
                 .size(120.dp)
