@@ -30,6 +30,7 @@ import com.example.apneamonitor.R
 import com.example.apneamonitor.data.local.SleepSessionEntity
 import com.example.apneamonitor.data.local.WeeklyTrendTuple
 import com.example.apneamonitor.ui.components.GlassPanel
+import com.example.apneamonitor.ui.components.GlassVariant
 import com.example.apneamonitor.ui.components.InteractiveDualLineChart
 import com.example.apneamonitor.ui.components.SleepScoreRing
 import com.example.apneamonitor.ui.components.WeeklyTrendBarChart
@@ -42,7 +43,6 @@ fun DashboardScreen(
     trendTuple: List<WeeklyTrendTuple>,
     connectionState: AppBluetoothManager.ConnectionState,
     riskScore: Int,
-    countdown: Int,
     onStartSession: () -> Unit,
     onStopSession: () -> Unit,
     onManualConnectTap: () -> Unit,
@@ -104,27 +104,30 @@ fun DashboardScreen(
         }
         Spacer(modifier = Modifier.height(12.dp))
 
-        val (pillText, pillBg, pillTextCol) = when (connectionState) {
-            AppBluetoothManager.ConnectionState.CONNECTED -> Triple("Synced to Device", DarkGreen, LightGreen)
-            AppBluetoothManager.ConnectionState.AUTO_SYNCING -> Triple("Auto-Syncing...", Color(0xFF4A4A00), SoftYellow)
-            AppBluetoothManager.ConnectionState.CONNECTING -> Triple("Connecting...", Color(0xFF4A4A00), SoftYellow)
-            AppBluetoothManager.ConnectionState.SCANNING -> Triple("Scanning...", GlassSurfaceStrong, OffWhite)
-            else -> Triple("Disconnected (Tap to Sync)", GlassSurfaceStrong, OffWhite)
+        val (pillText, pillTextCol) = when (connectionState) {
+            AppBluetoothManager.ConnectionState.CONNECTED -> "Synced to Device" to LightGreen
+            AppBluetoothManager.ConnectionState.AUTO_SYNCING -> "Auto-Syncing..." to SoftYellow
+            AppBluetoothManager.ConnectionState.CONNECTING -> "Connecting..." to SoftYellow
+            AppBluetoothManager.ConnectionState.SCANNING -> "Scanning..." to OffWhite
+            else -> "Disconnected (Tap to Sync)" to OffWhite
         }
 
-        Surface(
+        GlassPanel(
             shape = RoundedCornerShape(24.dp),
-            color = pillBg.copy(alpha = if (connectionState == AppBluetoothManager.ConnectionState.CONNECTED) 0.78f else 0.28f),
-            tonalElevation = 0.dp,
+            padding = PaddingValues(horizontal = 18.dp, vertical = 8.dp),
+            variant = GlassVariant.Subtle,
+            borderColor = pillTextCol.copy(alpha = if (connectionState == AppBluetoothManager.ConnectionState.CONNECTED) 0.42f else 0.24f),
             modifier = Modifier
                 .clickable { onForceSyncTap() }
-                .border(1.dp, GlassBorder, RoundedCornerShape(24.dp))
         ) {
             Row(
-                modifier = Modifier.padding(horizontal = 18.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Box(modifier = Modifier.size(8.dp).background(pillTextCol, CircleShape))
+                Box(
+                    modifier = Modifier
+                        .size(8.dp)
+                        .background(pillTextCol, CircleShape)
+                )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(text = pillText, color = pillTextCol, style = MaterialTheme.typography.labelLarge)
             }
@@ -173,7 +176,8 @@ fun DashboardScreen(
         GlassPanel(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(36.dp),
-            padding = PaddingValues(horizontal = 24.dp, vertical = 28.dp)
+            padding = PaddingValues(horizontal = 24.dp, vertical = 28.dp),
+            variant = GlassVariant.Prominent
         ) {
             Text(
                 text = "Respiratory Snapshot",
@@ -262,7 +266,8 @@ fun DashboardScreen(
         if (latestSession != null && latestSession.spO2Array.isNotEmpty()) {
             GlassPanel(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(30.dp)
+                shape = RoundedCornerShape(30.dp),
+                variant = GlassVariant.Standard
             ) {
                 Text("Overnight Cycle", color = OffWhite, fontWeight = FontWeight.Bold)
                 Spacer(modifier = Modifier.height(16.dp))
@@ -278,7 +283,8 @@ fun DashboardScreen(
             if (trendTuple.isNotEmpty()) {
                 GlassPanel(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(30.dp)
+                    shape = RoundedCornerShape(30.dp),
+                    variant = GlassVariant.Subtle
                 ) {
                     Text("Weekly Trend", color = OffWhite, fontWeight = FontWeight.Bold)
                     Spacer(modifier = Modifier.height(16.dp))
@@ -290,7 +296,8 @@ fun DashboardScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(220.dp),
-                shape = RoundedCornerShape(30.dp)
+                shape = RoundedCornerShape(30.dp),
+                variant = GlassVariant.Subtle
             ) {
                 Box(
                     modifier = Modifier.fillMaxSize(), 
@@ -344,13 +351,14 @@ fun StatCard(
     value: String,
     accentColor: Color,
     valueColor: Color = OffWhite,
-    modifier: Modifier = Modifier
+        modifier: Modifier = Modifier
 ) {
     GlassPanel(
         modifier = modifier
             .height(136.dp),
         shape = RoundedCornerShape(28.dp),
-        padding = PaddingValues(18.dp)
+        padding = PaddingValues(18.dp),
+        variant = GlassVariant.Standard
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,

@@ -6,7 +6,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.unit.dp
 import com.example.apneamonitor.data.local.WeeklyTrendTuple
 import com.example.apneamonitor.ui.theme.RestlessOrange
@@ -29,27 +29,27 @@ fun InteractiveDualLineChart(
 ) {
     if (spO2Data.isEmpty() || bpmData.isEmpty()) return
 
-    // Limit display entries for performance
-    val displaySize = minOf(300, spO2Data.size, bpmData.size)
-    val spo2Entries = List(displaySize) { FloatEntry(it.toFloat(), spO2Data[it].toFloat()) }
-    val bpmEntries = List(displaySize) { FloatEntry(it.toFloat(), bpmData[it].toFloat()) }
-
     val lineChartEntryModelProducer = remember(spO2Data, bpmData) {
+        val displaySize = minOf(300, spO2Data.size, bpmData.size)
+        val spo2Entries = List(displaySize) { FloatEntry(it.toFloat(), spO2Data[it].toFloat()) }
+        val bpmEntries = List(displaySize) { FloatEntry(it.toFloat(), bpmData[it].toFloat()) }
         ChartEntryModelProducer(spo2Entries, bpmEntries)
     }
 
     Box(modifier = modifier.fillMaxWidth().height(250.dp)) {
         // --- 1. Background Column Layer (Actigraphy Movement) ---
         if (movementData.isNotEmpty()) {
-            val movDisplaySize = minOf(300, movementData.size)
-            val movEntries = List(movDisplaySize) { FloatEntry(it.toFloat(), movementData[it].toFloat()) }
-            val movProducer = remember(movementData) { ChartEntryModelProducer(movEntries) }
+            val movProducer = remember(movementData) {
+                val movDisplaySize = minOf(300, movementData.size)
+                val movEntries = List(movDisplaySize) { FloatEntry(it.toFloat(), movementData[it].toFloat()) }
+                ChartEntryModelProducer(movEntries)
+            }
             
             Chart(
                 chart = columnChart(
                     columns = listOf(
                         LineComponent(
-                            color = RestlessOrange.copy(alpha = 0.35f).hashCode(), // Low opacity warning orange
+                            color = RestlessOrange.copy(alpha = 0.35f).toArgb(),
                             thicknessDp = 4f
                         )
                     )
@@ -78,12 +78,13 @@ fun WeeklyTrendBarChart(
     modifier: Modifier = Modifier
 ) {
     if (trends.isEmpty()) return
-
-    val entries = trends.mapIndexed { index, tuple ->
-        FloatEntry(index.toFloat(), tuple.totalApneaEvents.toFloat())
-    }
     
-    val chartEntryModelProducer = remember(trends) { ChartEntryModelProducer(entries) }
+    val chartEntryModelProducer = remember(trends) {
+        val entries = trends.mapIndexed { index, tuple ->
+            FloatEntry(index.toFloat(), tuple.totalApneaEvents.toFloat())
+        }
+        ChartEntryModelProducer(entries)
+    }
 
     Chart(
         chart = columnChart(),

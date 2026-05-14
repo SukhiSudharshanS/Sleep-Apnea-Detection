@@ -1,6 +1,8 @@
 package com.example.apneamonitor
 
 import android.Manifest
+import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -10,22 +12,26 @@ import androidx.activity.compose.setContent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.List
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -34,6 +40,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.*
 import com.example.apneamonitor.data.repository.SleepDataRepository
+import com.example.apneamonitor.ui.components.GlassBackground
+import com.example.apneamonitor.ui.components.GlassPanel
+import com.example.apneamonitor.ui.components.GlassVariant
 import com.example.apneamonitor.ui.screens.DashboardScreen
 import com.example.apneamonitor.ui.screens.LiveMonitorScreen
 import com.example.apneamonitor.ui.screens.ReportScreen
@@ -41,6 +50,10 @@ import com.example.apneamonitor.ui.theme.ApneaMonitorTheme
 import com.example.apneamonitor.ui.theme.*
 import com.example.apneamonitor.viewmodel.ApneaViewModel
 import com.example.apneamonitor.viewmodel.ApneaViewModelFactory
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class MainActivity : ComponentActivity() {
 
@@ -63,130 +76,174 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+private enum class BlePermissionAction {
+    Connect,
+    StartSession
+}
+
+private fun hasRequiredPermissions(context: Context, permissions: Array<String>): Boolean {
+    return permissions.all { perm ->
+        ContextCompat.checkSelfPermission(context, perm) == PackageManager.PERMISSION_GRANTED
+    }
+}
+
+private fun startApneaBleService(context: Context) {
+    ContextCompat.startForegroundService(
+        context,
+        Intent(context, com.example.apneamonitor.service.ApneaBleService::class.java)
+    )
+}
+
 @Composable
 fun ApneaMainScaffold(viewModel: ApneaViewModel) {
     val navController = rememberNavController()
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+    var pendingPermissionAction by remember { mutableStateOf<BlePermissionAction?>(null) }
+
+    val requiredPermissions = remember {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            arrayOf(
+                Manifest.permission.BLUETOOTH_SCAN,
+                Manifest.permission.BLUETOOTH_CONNECT,
+                Manifest.permission.ACCESS_FINE_LOCATION
+            )
+        } else {
+            arrayOf(Manifest.permission.ACCESS_FINE_LOCATION)
+        }
+    }
+
+    fun runGrantedBleAction(action: BlePermissionAction) {
+        when (action) {
+            BlePermissionAction.Connect -> viewModel.connectOrSync()
+            BlePermissionAction.StartSession -> {
+                startApneaBleService(context)
+                viewModel.connectOrSync()
+                viewModel.startNewSession()
+            }
+        }
+    }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
         if (permissions.entries.all { it.value }) {
-            androidx.core.content.ContextCompat.startForegroundService(
-                context, 
-                android.content.Intent(context, com.example.apneamonitor.service.ApneaBleService::class.java)
-            )
-            viewModel.connectOrSync()
+            runGrantedBleAction(pendingPermissionAction ?: BlePermissionAction.Connect)
         }
+        pendingPermissionAction = null
     }
 
-    val requiredPermissions = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-        arrayOf(Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_CONNECT, Manifest.permission.ACCESS_FINE_LOCATION)
-    } else {
-        arrayOf(Manifest.permission.ACCESS_FINE_LOCATION)
-    }
-
-    // Auto-Sync Hook Trigger (Lifecycle simulation)
-    LaunchedEffect(Unit) {
-        val hasPermissions = requiredPermissions.all { perm ->
-            ContextCompat.checkSelfPermission(context, perm) == PackageManager.PERMISSION_GRANTED
-        }
-        if (hasPermissions) {
-            androidx.core.content.ContextCompat.startForegroundService(
-                context, 
-                android.content.Intent(context, com.example.apneamonitor.service.ApneaBleService::class.java)
-            )
-            viewModel.connectOrSync() // Automatically scans & syncs in background if ring is near
+    fun requestBleAction(action: BlePermissionAction) {
+        if (hasRequiredPermissions(context, requiredPermissions)) {
+            runGrantedBleAction(action)
         } else {
+            pendingPermissionAction = action
             permissionLauncher.launch(requiredPermissions)
         }
     }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(
-                brush = Brush.verticalGradient(
-                    colors = listOf(BackdropStart, BackdropMid, BackdropEnd)
-                )
-            )
-    ) {
+    LaunchedEffect(Unit) {
+        delay(700)
+        if (viewModel.hasSavedDevice() && hasRequiredPermissions(context, requiredPermissions)) {
+            viewModel.connectOrSync() // Automatically scans & syncs in background if ring is near
+        }
+    }
+
+    val screenMotionEasing = remember { CubicBezierEasing(0.2f, 0f, 0f, 1f) }
+    val bottomRoutes = remember { setOf("dashboard", "live_monitor", "report") }
+
+    GlassBackground {
         Scaffold(
             containerColor = Color.Transparent,
             bottomBar = {
                 val navBackStackEntry by navController.currentBackStackEntryAsState()
                 val currentRoute = navBackStackEntry?.destination?.route
 
-                if (currentRoute != "splash") {
+                AnimatedVisibility(
+                    visible = currentRoute != null && bottomRoutes.contains(currentRoute),
+                    enter = slideInVertically(
+                        animationSpec = tween(320, easing = screenMotionEasing),
+                        initialOffsetY = { it / 2 }
+                    ) + fadeIn(animationSpec = tween(180)),
+                    exit = slideOutVertically(
+                        animationSpec = tween(220, easing = screenMotionEasing),
+                        targetOffsetY = { it / 2 }
+                    ) + fadeOut(animationSpec = tween(140))
+                ) {
                     Box(modifier = Modifier.padding(horizontal = 18.dp, vertical = 14.dp)) {
-                        NavigationBar(
-                            containerColor = GlassSurfaceStrong,
-                            contentColor = OffWhite,
-                            tonalElevation = 0.dp,
+                        GlassPanel(
                             modifier = Modifier
-                                .shadow(18.dp, RoundedCornerShape(28.dp), clip = false)
-                                .clip(RoundedCornerShape(28.dp))
-                                .border(1.dp, GlassBorder, RoundedCornerShape(28.dp))
+                                .fillMaxWidth(),
+                            shape = RoundedCornerShape(28.dp),
+                            padding = androidx.compose.foundation.layout.PaddingValues(0.dp),
+                            variant = GlassVariant.Prominent,
+                            revealOnFirstComposition = false
                         ) {
-                            NavigationBarItem(
-                                selected = currentRoute == "dashboard",
-                                onClick = {
-                                    navController.navigate("dashboard") {
-                                        popUpTo(navController.graph.startDestinationId) { saveState = true }
-                                        launchSingleTop = true
-                                        restoreState = true
-                                    }
-                                },
-                                icon = { Icon(Icons.Default.Home, contentDescription = "Dashboard") },
-                                label = { Text("Dashboard") },
-                                colors = NavigationBarItemDefaults.colors(
-                                    selectedIconColor = OffWhite,
-                                    selectedTextColor = OffWhite,
-                                    indicatorColor = GlassSurface,
-                                    unselectedIconColor = MutedText,
-                                    unselectedTextColor = MutedText
+                            NavigationBar(
+                                containerColor = Color.Transparent,
+                                contentColor = OffWhite,
+                                tonalElevation = 0.dp
+                            ) {
+                                NavigationBarItem(
+                                    selected = currentRoute == "dashboard",
+                                    onClick = {
+                                        navController.navigate("dashboard") {
+                                            popUpTo(navController.graph.startDestinationId) { saveState = true }
+                                            launchSingleTop = true
+                                            restoreState = true
+                                        }
+                                    },
+                                    icon = { Icon(Icons.Default.Home, contentDescription = "Dashboard") },
+                                    label = { Text("Dashboard") },
+                                    colors = NavigationBarItemDefaults.colors(
+                                        selectedIconColor = OffWhite,
+                                        selectedTextColor = OffWhite,
+                                        indicatorColor = GlassSurface,
+                                        unselectedIconColor = MutedText,
+                                        unselectedTextColor = MutedText
+                                    )
                                 )
-                            )
 
-                            NavigationBarItem(
-                                selected = currentRoute == "live_monitor",
-                                onClick = {
-                                    navController.navigate("live_monitor") {
-                                        popUpTo(navController.graph.startDestinationId) { saveState = true }
-                                        launchSingleTop = true
-                                        restoreState = true
-                                    }
-                                },
-                                icon = { Icon(Icons.Default.Info, contentDescription = "Live") },
-                                label = { Text("Live Monitor") },
-                                colors = NavigationBarItemDefaults.colors(
-                                    selectedIconColor = OffWhite,
-                                    selectedTextColor = OffWhite,
-                                    indicatorColor = GlassSurface,
-                                    unselectedIconColor = MutedText,
-                                    unselectedTextColor = MutedText
+                                NavigationBarItem(
+                                    selected = currentRoute == "live_monitor",
+                                    onClick = {
+                                        navController.navigate("live_monitor") {
+                                            popUpTo(navController.graph.startDestinationId) { saveState = true }
+                                            launchSingleTop = true
+                                            restoreState = true
+                                        }
+                                    },
+                                    icon = { Icon(Icons.Default.Info, contentDescription = "Live") },
+                                    label = { Text("Live Monitor") },
+                                    colors = NavigationBarItemDefaults.colors(
+                                        selectedIconColor = OffWhite,
+                                        selectedTextColor = OffWhite,
+                                        indicatorColor = GlassSurface,
+                                        unselectedIconColor = MutedText,
+                                        unselectedTextColor = MutedText
+                                    )
                                 )
-                            )
 
-                            NavigationBarItem(
-                                selected = currentRoute == "report",
-                                onClick = {
-                                    navController.navigate("report") {
-                                        popUpTo(navController.graph.startDestinationId) { saveState = true }
-                                        launchSingleTop = true
-                                        restoreState = true
-                                    }
-                                },
-                                icon = { Icon(Icons.Default.List, contentDescription = "Report") },
-                                label = { Text("Report") },
-                                colors = NavigationBarItemDefaults.colors(
-                                    selectedIconColor = OffWhite,
-                                    selectedTextColor = OffWhite,
-                                    indicatorColor = GlassSurface,
-                                    unselectedIconColor = MutedText,
-                                    unselectedTextColor = MutedText
+                                NavigationBarItem(
+                                    selected = currentRoute == "report",
+                                    onClick = {
+                                        navController.navigate("report") {
+                                            popUpTo(navController.graph.startDestinationId) { saveState = true }
+                                            launchSingleTop = true
+                                            restoreState = true
+                                        }
+                                    },
+                                    icon = { Icon(Icons.AutoMirrored.Filled.List, contentDescription = "Report") },
+                                    label = { Text("Report") },
+                                    colors = NavigationBarItemDefaults.colors(
+                                        selectedIconColor = OffWhite,
+                                        selectedTextColor = OffWhite,
+                                        indicatorColor = GlassSurface,
+                                        unselectedIconColor = MutedText,
+                                        unselectedTextColor = MutedText
+                                    )
                                 )
-                            )
+                            }
                         }
                     }
                 }
@@ -194,25 +251,39 @@ fun ApneaMainScaffold(viewModel: ApneaViewModel) {
         ) { innerPadding ->
             NavHost(
                 navController = navController,
-                startDestination = "splash",
-                modifier = Modifier.padding(innerPadding)
+                startDestination = "dashboard",
+                modifier = Modifier.padding(innerPadding),
+                enterTransition = {
+                    slideInHorizontally(
+                        animationSpec = tween(360, easing = screenMotionEasing),
+                        initialOffsetX = { it / 8 }
+                    ) + fadeIn(animationSpec = tween(220))
+                },
+                exitTransition = {
+                    slideOutHorizontally(
+                        animationSpec = tween(260, easing = screenMotionEasing),
+                        targetOffsetX = { -it / 10 }
+                    ) + fadeOut(animationSpec = tween(160))
+                },
+                popEnterTransition = {
+                    slideInHorizontally(
+                        animationSpec = tween(360, easing = screenMotionEasing),
+                        initialOffsetX = { -it / 8 }
+                    ) + fadeIn(animationSpec = tween(220))
+                },
+                popExitTransition = {
+                    slideOutHorizontally(
+                        animationSpec = tween(260, easing = screenMotionEasing),
+                        targetOffsetX = { it / 10 }
+                    ) + fadeOut(animationSpec = tween(160))
+                }
             ) {
-            composable("splash") {
-                com.example.apneamonitor.ui.screens.SplashScreen(
-                    onNavigateNext = {
-                        navController.navigate("dashboard") {
-                            popUpTo("splash") { inclusive = true }
-                        }
-                    }
-                )
-            }
             composable("dashboard") {
                 val latestSession by viewModel.latestSession.collectAsStateWithLifecycle()
                 val activeSession by viewModel.activeSession.collectAsStateWithLifecycle()
                 val weeklyTrend by viewModel.weeklyTrend.collectAsStateWithLifecycle()
                 val connectionState by viewModel.connectionState.collectAsStateWithLifecycle()
                 val riskScore by viewModel.riskScore.collectAsStateWithLifecycle()
-                val countdown by viewModel.timeUntilNextAssessment.collectAsStateWithLifecycle()
  
                 DashboardScreen(
                     latestSession = latestSession,
@@ -220,44 +291,26 @@ fun ApneaMainScaffold(viewModel: ApneaViewModel) {
                     trendTuple = weeklyTrend,
                     connectionState = connectionState,
                     riskScore = riskScore,
-                    countdown = countdown,
-                    onStartSession = { viewModel.startNewSession() },
+                    onStartSession = { requestBleAction(BlePermissionAction.StartSession) },
                     onStopSession = { viewModel.stopSession() },
                     onManualConnectTap = {
-                        val hasPermissions = requiredPermissions.all { perm ->
-                            ContextCompat.checkSelfPermission(context, perm) == PackageManager.PERMISSION_GRANTED
-                        }
-                        if (hasPermissions) {
-                            androidx.core.content.ContextCompat.startForegroundService(
-                                context,
-                                android.content.Intent(context, com.example.apneamonitor.service.ApneaBleService::class.java)
-                            )
-                            viewModel.connectOrSync()
-                            Toast.makeText(context, "Scanning for Ring...", Toast.LENGTH_SHORT).show()
-                        } else {
-                            permissionLauncher.launch(requiredPermissions)
-                        }
+                        requestBleAction(BlePermissionAction.Connect)
+                        Toast.makeText(context, "Scanning for Ring...", Toast.LENGTH_SHORT).show()
                     },
                     onForceSyncTap = {
-                        val hasPermissions = requiredPermissions.all { perm ->
-                            ContextCompat.checkSelfPermission(context, perm) == PackageManager.PERMISSION_GRANTED
-                        }
-                        if (hasPermissions) {
-                            androidx.core.content.ContextCompat.startForegroundService(
-                                context, 
-                                android.content.Intent(context, com.example.apneamonitor.service.ApneaBleService::class.java)
-                            )
-                            viewModel.connectOrSync()
-                            Toast.makeText(context, "Scanning for Ring...", Toast.LENGTH_SHORT).show()
-                        }
-                        else permissionLauncher.launch(requiredPermissions)
+                        requestBleAction(BlePermissionAction.Connect)
+                        Toast.makeText(context, "Scanning for Ring...", Toast.LENGTH_SHORT).show()
                     },
                     onDownloadReport = { ctx: android.content.Context ->
-                        val success = viewModel.generateSessionSummary(ctx)
-                        if (success) {
-                            Toast.makeText(ctx, "Report saved to Downloads", Toast.LENGTH_LONG).show()
-                        } else {
-                            Toast.makeText(ctx, "Failed to generate report", Toast.LENGTH_SHORT).show()
+                        coroutineScope.launch {
+                            val success = withContext(Dispatchers.IO) {
+                                viewModel.generateSessionSummary(ctx)
+                            }
+                            if (success) {
+                                Toast.makeText(ctx, "Report saved to Downloads", Toast.LENGTH_LONG).show()
+                            } else {
+                                Toast.makeText(ctx, "Failed to generate report", Toast.LENGTH_SHORT).show()
+                            }
                         }
                     }
                 )

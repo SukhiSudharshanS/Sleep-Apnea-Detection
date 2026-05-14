@@ -6,13 +6,14 @@ import com.example.apneamonitor.AppBluetoothManager
 import com.example.apneamonitor.data.local.SleepSessionEntity
 import com.example.apneamonitor.data.local.WeeklyTrendTuple
 import com.example.apneamonitor.data.repository.SleepDataRepository
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import android.content.Context
@@ -88,10 +89,16 @@ class ApneaViewModel(
         }
 
         // --- THE ENGINE: Persistent Telemetry Sink ---
-        viewModelScope.launch {
-            // Observe the 4 core telemetry streams and sync to DB every second
-            // This ensures Dashboard, CSV, and PDF all read from the same source.
-            combine(liveSpo2, liveBpm, liveMovement, liveAudioLevel) { spo2, bpm, movement, audio ->
+        viewModelScope.launch(Dispatchers.Default) {
+            // Sample the latest telemetry once per second. BLE updates arrive as several StateFlow
+            // writes per packet, so collecting combine() here caused duplicate DB writes and jank.
+            while (isActive) {
+                delay(1000)
+
+                val spo2 = liveSpo2.value
+                val bpm = liveBpm.value
+                val movement = liveMovement.value
+                val audio = liveAudioLevel.value
                 val currentTime = System.currentTimeMillis()
                 val currentMovementScore = movement
                 val movementJump = currentMovementScore - previousMovementScore
@@ -121,7 +128,7 @@ class ApneaViewModel(
                 }
 
                 previousMovementScore = currentMovementScore
-            }.collect { /* Triggered by combine */ }
+            }
         }
 
         viewModelScope.launch {
@@ -147,8 +154,8 @@ class ApneaViewModel(
         }
 
         // Dedicated Countdown Loop
-        viewModelScope.launch(kotlinx.coroutines.Dispatchers.Default) {
-             while (true) {
+        viewModelScope.launch(Dispatchers.Default) {
+             while (isActive) {
                  if (timeUntilNextAssessment.value > 0) {
                      timeUntilNextAssessment.value -= 1
                  }
@@ -191,6 +198,8 @@ class ApneaViewModel(
     fun connectOrSync() {
         bluetoothManager.ensureConnected(isAutoSync = true)
     }
+
+    fun hasSavedDevice(): Boolean = bluetoothManager.hasSavedDevice()
 
     fun generateSessionSummary(context: Context): Boolean {
         // Pull the absolute latest session from the DB to ensure perfect data alignment

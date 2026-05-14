@@ -253,7 +253,6 @@ class AppBluetoothManager(private val context: Context) {
 
         when (uuid) {
             CHAR_LIVE_DATA_UUID -> {
-                Log.d("ApneaBLE", "Live Packet Received: Size=${value.size}, Data=${value.joinToString()}")
                 if (value.size < 4) {
                     Log.e("ApneaBLE", "Malformed live payload: expected >= 4 bytes, got ${value.size}")
                     return
@@ -282,15 +281,21 @@ class AppBluetoothManager(private val context: Context) {
                 when (header) {
                     0xAA -> { // SpO2 Header
                         data.forEach { spo2Buffer.add(it.toUByte().toInt()) }
-                        Log.d("ApneaBLE", "Sync Progress | SpO2: ${spo2Buffer.size} bytes collected")
+                        if (Log.isLoggable("ApneaBLE", Log.DEBUG)) {
+                            Log.d("ApneaBLE", "Sync Progress | SpO2: ${spo2Buffer.size} bytes collected")
+                        }
                     }
                     0xBB -> { // BPM Header
                         data.forEach { bpmBuffer.add(it.toUByte().toInt()) }
-                        Log.d("ApneaBLE", "Sync Progress | BPM: ${bpmBuffer.size} bytes collected")
+                        if (Log.isLoggable("ApneaBLE", Log.DEBUG)) {
+                            Log.d("ApneaBLE", "Sync Progress | BPM: ${bpmBuffer.size} bytes collected")
+                        }
                     }
                     0xCC -> { // Movement Header
                         data.forEach { movementBuffer.add(it.toUByte().toInt()) }
-                        Log.d("ApneaBLE", "Sync Progress | Movement: ${movementBuffer.size} bytes collected")
+                        if (Log.isLoggable("ApneaBLE", Log.DEBUG)) {
+                            Log.d("ApneaBLE", "Sync Progress | Movement: ${movementBuffer.size} bytes collected")
+                        }
                     }
                     0xFF -> { // End of Transmission
                         Log.d("ApneaBLE", "Sync Complete. Reassembled SpO2: ${spo2Buffer.size}, BPM: ${bpmBuffer.size}, Movement: ${movementBuffer.size}")
@@ -329,6 +334,8 @@ class AppBluetoothManager(private val context: Context) {
         }
         return false
     }
+
+    fun hasSavedDevice(): Boolean = prefs.getString("SAVED_MAC", null) != null
 
     fun ensureConnected(isAutoSync: Boolean = true) {
         shouldMaintainConnection = true

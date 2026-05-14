@@ -3,7 +3,6 @@ package com.example.apneamonitor.data.repository
 import com.example.apneamonitor.data.local.SleepSessionDao
 import com.example.apneamonitor.data.local.SleepSessionEntity
 import com.example.apneamonitor.data.local.WeeklyTrendTuple
-import com.example.apneamonitor.ml.ApneaFusionModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext

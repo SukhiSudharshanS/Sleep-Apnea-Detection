@@ -7,10 +7,16 @@ import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import com.example.apneamonitor.data.local.AppDatabase
 import com.example.apneamonitor.workers.ApneaSyncWorker
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.util.Calendar
 import java.util.concurrent.TimeUnit
 
 class ApneaApplication : Application() {
+    private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     
     // Lazy initialize the database so the logic is executed only when needed
     val database by lazy { AppDatabase.getDatabase(this) }
@@ -20,7 +26,10 @@ class ApneaApplication : Application() {
     
     override fun onCreate() {
         super.onCreate()
-        scheduleBackgroundSync()
+        appScope.launch {
+            delay(1500)
+            scheduleBackgroundSync()
+        }
     }
 
     private fun scheduleBackgroundSync() {

@@ -57,6 +57,7 @@ dependencies {
     implementation(libs.androidx.activity.compose)
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.ui)
+    implementation("androidx.compose.animation:animation")
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
@@ -93,21 +94,4 @@ dependencies {
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
 
-    // 1. Retrofit for HTTP Requests
-    implementation("com.squareup.retrofit2:retrofit:2.9.0")
-    implementation("com.squareup.retrofit2:converter-gson:2.9.0")
-
-    // 2. Health Connect API SDK
-    implementation("androidx.health.connect:connect-client:1.1.0-alpha11")
-
-    // 3. Google Maps API
-    implementation("com.google.android.gms:play-services-maps:17.0.0")
-
-    // 4. BERT for NLP (TensorFlow Lite - Modern AAR optimized)
-    implementation("org.tensorflow:tensorflow-lite:2.16.1")
-
-
-    // 6. Firebase
-    implementation("com.google.firebase:firebase-auth:21.0.1")
-    implementation("com.google.firebase:firebase-database:20.0.0")
 }

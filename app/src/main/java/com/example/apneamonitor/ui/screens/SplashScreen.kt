@@ -45,9 +45,9 @@ fun SplashScreen(onNavigateNext: () -> Unit) {
         label = "scale"
     )
 
-    // Trigger navigation after 2.5 seconds
+    // Keep the optional in-app splash brief; Android 12+ already shows the native splash.
     LaunchedEffect(Unit) {
-        delay(2500)
+        delay(650)
         onNavigateNext()
     }
 

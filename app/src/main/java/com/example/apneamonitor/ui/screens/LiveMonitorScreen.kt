@@ -5,6 +5,9 @@ import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.animateIntAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
@@ -19,6 +22,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.foundation.Image
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.ui.Alignment
@@ -32,6 +36,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.apneamonitor.R
 import com.example.apneamonitor.ui.components.GlassPanel
+import com.example.apneamonitor.ui.components.GlassVariant
 import com.example.apneamonitor.ui.theme.*
 
 @Composable
@@ -100,7 +105,8 @@ fun LiveMonitorScreen(
         GlassPanel(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(28.dp),
-            padding = PaddingValues(horizontal = 20.dp, vertical = 18.dp)
+            padding = PaddingValues(horizontal = 20.dp, vertical = 18.dp),
+            variant = GlassVariant.Prominent
         ) {
             Text(
                 text = "Live Diagnostics",
@@ -176,10 +182,23 @@ fun LiveMetricCard(
     progress: Float? = null,
     modifier: Modifier = Modifier
 ) {
+    val numericValue = value.toIntOrNull()
+    val animatedValue by animateIntAsState(
+        targetValue = numericValue ?: 0,
+        animationSpec = tween(durationMillis = 240),
+        label = "LiveMetricValue"
+    )
+    val animatedProgress by animateFloatAsState(
+        targetValue = progress?.coerceIn(0f, 1f) ?: 0f,
+        animationSpec = tween(durationMillis = 240),
+        label = "LiveMetricProgress"
+    )
+
     GlassPanel(
         modifier = modifier.aspectRatio(1f),
         shape = RoundedCornerShape(28.dp),
-        padding = PaddingValues(18.dp)
+        padding = PaddingValues(18.dp),
+        variant = GlassVariant.Standard
     ) {
         Column(
             modifier = Modifier.fillMaxSize(),
@@ -213,7 +232,7 @@ fun LiveMetricCard(
                     )
                 }
                 Text(
-                    text = value,
+                    text = numericValue?.let { animatedValue.toString() } ?: value,
                     color = OffWhite,
                     style = MaterialTheme.typography.displayMedium
                 )
@@ -221,7 +240,7 @@ fun LiveMetricCard(
 
             if (progress != null) {
                 LinearProgressIndicator(
-                    progress = progress,
+                    progress = { animatedProgress },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(6.dp)

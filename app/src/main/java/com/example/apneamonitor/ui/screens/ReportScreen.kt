@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.sp
 import com.example.apneamonitor.R
 import com.example.apneamonitor.data.local.SleepSessionEntity
 import com.example.apneamonitor.ui.components.GlassPanel
+import com.example.apneamonitor.ui.components.GlassVariant
 import com.example.apneamonitor.ui.theme.*
 import com.example.apneamonitor.utils.CsvGenerator
 import com.example.apneamonitor.utils.PdfGenerator
@@ -71,7 +72,8 @@ fun ReportScreen(
         GlassPanel(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(28.dp),
-            padding = PaddingValues(horizontal = 20.dp, vertical = 18.dp)
+            padding = PaddingValues(horizontal = 20.dp, vertical = 18.dp),
+            variant = GlassVariant.Prominent
         ) {
             Text(
                 text = "Clinical Sleep Summary",
@@ -92,7 +94,8 @@ fun ReportScreen(
             GlassPanel(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(30.dp),
-                padding = PaddingValues(22.dp)
+                padding = PaddingValues(22.dp),
+                variant = GlassVariant.Standard
             ) {
                 Text(
                     text = "Session Overview",
@@ -195,16 +198,17 @@ fun ReportScreen(
             }
             Spacer(modifier = Modifier.height(112.dp))
         } else {
-            Box(
-                Modifier
-                    .fillMaxWidth()
-                    .padding(top = 48.dp),
-                contentAlignment = Alignment.Center
+            GlassPanel(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(28.dp),
+                padding = PaddingValues(horizontal = 22.dp, vertical = 28.dp),
+                variant = GlassVariant.Subtle
             ) {
                 Text(
                     text = "Sync an Edge device to generate a report.",
                     color = MutedText,
-                    textAlign = TextAlign.Center
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
                 )
             }
         }
